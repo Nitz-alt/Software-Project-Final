@@ -126,6 +126,13 @@ void printAr(double *ar, int size){
     }
 }
 
+void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
+    int i;
+    for (i=0; i < numberOfRows; i++){
+        printAr(array[i], numberOfColumns);
+    }
+}
+
 /*
     Paramters:
         number - Number represented with a string
@@ -203,16 +210,150 @@ int checkTextFormat(char *fileName){
     return 0;
 }
 
+/*
+    Paramters:
+        input - File to parse vectors from
+        numberOfVectors - number of vecotrs
+        length - length of each vector in the matrix
+    Return:
+        A matrix of the vectors parsed from the file
+*/
+double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
+    size_t i,j;
+    char *suffix;
+    double *block = allocMemory(sizeof(double) * numberOfVectors * length);
+    double ** matrix = allocMemory(sizeof(double *) * numberOfVectors);
+    double *vector;
 
-int main(){
+    for (i = 0; i < numberOfVectors; i++){
+        matrix[i] = block + i * length;
+    }
+
+    for (i = 0; i < numberOfVectors; i++){
+        vector = matrix[i];
+        for (j = 0; j < length; j++){
+            if (j != length - 1){
+                fscanf(input, "%lf,", (vector + j));
+            }
+            else{
+                fscanf(input, "%lf\n", (vector + j));
+            }
+        }
+    }
+    return matrix;
+}
+
+/*
+    Prints the weighted matrix of the input vectors
+    Paramters:
+        Matrix - matrix of vectors to calculated the weighted matrix on
+        numberOfVectors - number of vecotrs
+        length - length of each vector in the matrix
+    Return:
+        
+*/
+
+void wam(double **matrix, size_t numberOfVectors, size_t length){
+    size_t i,j;
+    double wij;
+    double *weightedBlock = (double *) malloc(sizeof(double) * numberOfVectors * numberOfVectors);
+    double **weightedMatrix = (double **) malloc(sizeof(double *) * numberOfVectors);
+    for (i = 0; i < numberOfVectors; i++){
+        weightedMatrix[i] = weightedBlock + i * numberOfVectors;
+    }
+    for (i = 0; i < numberOfVectors; i++){
+        weightedMatrix[i][i] = 0;
+        for (j = i + 1; j < numberOfVectors; j++){
+            wij = exp(-1 * sqrt(eucleadDist(matrix[i], matrix[j], length)) * 0.5);
+            weightedMatrix[i][j] = wij;
+            weightedMatrix[j][i] = wij;
+        }
+    }
+    printMatrix(weightedMatrix, numberOfVectors, numberOfVectors);
+    free(weightedBlock);
+    free(weightedMatrix);
+}
+
+void ddg(){
+
+}
+
+void lnorm(){
+
+}
+
+
+
+
+int main(int argc, char* argv[]){
     /*
     Gets goal and input file.
     Does not need kmeans as kmeans only used in python.
-    TODO:   Implement wam
+    TODO: * Implement wam *
             Implement ddg
             Implement lnorm
             Implement jacboi
     */
-   return 0;
+   char *input, *operation, c;
+   double **vectors, result;
+   size_t length = 1, numberOfVectors=0;
+   FILE *input_file;
+   
+   
+    if (argc != 3) return 1;
+
+    operation = argv[1];
+    input = argv[2];
+
+    if (!checkTextFormat(input)) return 1; /* File is not a txt or csv file */
+
+    input_file = fopen(input, "r");
+    if (input_file == NULL) errorMsg(0); /* File couldn't be open */
+
+    /* Getting length of the vectors and number of vectors */
+    while ((c = fgetc(input_file)) != '\n'){
+        if (feof(input_file)){
+            fclose(input_file);
+            errorMsg(0);
+            return 1;
+        }
+        if (c == ',') length++;
+    }
+    rewind(input_file);
+    while ((c = fgetc(input_file))){
+        if (feof(input_file)) break;
+        if (c == '\n') numberOfVectors++;
+    }
+    if (numberOfVectors == 0){
+        errorMsg(0);
+        return 1;
+    }
+    rewind(input_file);
+    MEMORY_LIST = malloc(sizeof(void *) * 2);
+
+    if (!strcmp(operation, "jacobi")){ 
+        return 0;
+    }
+
+    /* Parsing vectors from input file */
+    vectors = parseMatrix(input_file, numberOfVectors, length);
+
+    /* WAM */
+    if (!strcmp(operation, "wam")){
+        // wam(vectors, numberOfVectors, length);
+        wam(vectors, numberOfVectors, length);
+    }
+    /* DDG */
+    if (!strcmp(operation, "ddg")){
+        ddg(vectors);
+    }
+
+    /* LNORM */
+    if (!strcmp(operation, "lnorm")){
+        lnorm(vectors);
+    }
+    freeAllMemory();
+    
+
 
 }
