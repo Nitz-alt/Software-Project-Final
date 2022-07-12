@@ -187,6 +187,10 @@ void errorMsg(int code){
 */
 void * allocMemory(size_t size){
     void *memoToAssign = malloc(size);
+    if (memoToAssign == NULL){
+        errorMsg(1);
+        exit(1);
+    }
     MEMORY_LIST[MEMORY_LIST_INDEX++] = memoToAssign;
     return memoToAssign;
 }
@@ -244,23 +248,36 @@ double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
 }
 
 /*
-    Prints the weighted matrix of the input vectors
+    Paramters:
+        numberOfRows - number of rows to in the matrix to allocate
+        numberOfColumns - number of columns in the matrix to allocate
+    Return:
+        returns the pointer to the memory that was allocated
+        
+*/
+double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
+    int i;
+    double *block = (double *) allocMemory(size * numberOfRows * numberOfColumns);
+    double **matrix = (double **) allocMemory(size * numberOfRows);
+    for (i = 0; i < numberOfRows; i++){
+        matrix[i] = block + i * numberOfColumns;
+    }
+    return matrix;
+}
+
+
+/*
     Paramters:
         Matrix - matrix of vectors to calculated the weighted matrix on
         numberOfVectors - number of vecotrs
         length - length of each vector in the matrix
     Return:
-        
+        Weighted Adjacency Matrix
 */
-
-void wam(double **matrix, size_t numberOfVectors, size_t length){
+double **wam(double **matrix, size_t numberOfVectors, size_t length){
     size_t i,j;
     double wij;
-    double *weightedBlock = (double *) malloc(sizeof(double) * numberOfVectors * numberOfVectors);
-    double **weightedMatrix = (double **) malloc(sizeof(double *) * numberOfVectors);
-    for (i = 0; i < numberOfVectors; i++){
-        weightedMatrix[i] = weightedBlock + i * numberOfVectors;
-    }
+    double **weightedMatrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     for (i = 0; i < numberOfVectors; i++){
         weightedMatrix[i][i] = 0;
         for (j = i + 1; j < numberOfVectors; j++){
@@ -269,18 +286,151 @@ void wam(double **matrix, size_t numberOfVectors, size_t length){
             weightedMatrix[j][i] = wij;
         }
     }
-    printMatrix(weightedMatrix, numberOfVectors, numberOfVectors);
-    free(weightedBlock);
-    free(weightedMatrix);
+    return weightedMatrix;
 }
 
-void ddg(){
-
+/* 
+    Paramters:
+        matrix - matrix of vectors to calculated the weighted matrix on
+        length - length of each vector in the matrix
+        row - row to sum
+    Return:
+        Sum of row in matrix
+        
+*/
+double sumOfRow(double **matrix, size_t length, size_t row){
+    int i;
+    double sum = 0;
+    for (i = 0; i < length; i++){
+        sum += matrix[row][i];
+    }
+    return sum;
 }
 
-void lnorm(){
 
+/* 
+    Paramters:
+        matrix - matrix of vectors to calculate its diagonal degree matrix
+        numberOfVectors - number of vecotrs
+        length - length of each vector in the matrix
+    Return:
+        Diagonal Degree Matrix of matrix
+        
+*/
+double ** ddg(double **matrix, size_t numberOfVectors, size_t length){
+    size_t i, j;
+    double **diag_matrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    char suffix = ',';
+    for (i = 0; i < numberOfVectors; i++){
+        for (j = 0; j < numberOfVectors; j++){
+            if (j != i) diag_matrix[i][j] = 0;
+            else diag_matrix[i][i] = sumOfRow(matrix, length, i);
+        }
+    }
+    return diag_matrix;
 }
+
+/*
+    Paramters:
+        dst_matrix - matrix to apply function on
+        numberOfRows - number of rows in matrix
+        numberOfColumns - number of columns in matrix
+        f - function to apply
+    Return:
+        void => the function applys in place
+*/
+void funcOnMatrix(double **dst_matrix , size_t numberOfRows, size_t numberOfColumns, double (*f)(double)){
+    int i,j;
+    for (i = 0 ; i < numberOfRows; i++){
+        for (j = 0; j < numberOfColumns; j++){
+            dst_matrix[i][j] = (*f)(dst_matrix[i][j]);
+        }
+    }
+}
+
+/*
+    Returns the eye matrix of (size X size) dimensions 
+    Paramters:
+        size - dimension of matrix
+    Return:
+*/
+double **eye(size_t size){
+    int i,j;
+    double **matrix = (double**) createBlockMatrix(sizeof(double), size, size);
+    for (i = 0 ; i < size; i++){
+        for (j = 0; j < size; j++){
+            if (i != j) matrix[i][j] = 0;
+            else matrix[i][j] = 1;
+        }
+    }
+    return matrix;
+}
+
+
+/*
+    Preforms matrix multiplication. sets result to dst matrix: dst = AxB
+    Assumes correct dimesnsions of dst (i.e. dst dimnesions are (rowsA x colsB) and colsA == rowsB)
+    Paramters:
+        dst = AxB
+        A - Matrix A
+        rowsA - number of rows in matrix A
+        colsA - number of columns in matrix A
+        B - Matrix B
+        rowsB - number of rows in matrix B
+        colsB - number of columns in matrix B
+    Return:
+*/
+void dot(double **dst, double **A, size_t rowsA, size_t colsA, double **B, size_t rowsB, size_t colsB){
+    size_t i,j, k;
+    int iterNum, lowBound, left;
+    double totalSum, sum1, sum2, sum3, sum4;
+    for (i = 0; i < rowsA; i++){
+        for (j = 0; j < colsB; j++){
+            totalSum = 0;
+            sum1 = 0;
+            sum2 = 0;
+            sum3 = 0;
+            sum4 = 0;
+            iterNum = (int) colsA / 4;
+            for (k = 0; k < iterNum; k++){
+                sum1 += A[i][k] * B[k][j];
+                sum2 += A[i][k+1] * B[k+1][j];
+                sum3 += A[i][k+2] * B[k+2][j];
+                sum4 += A[i][k+3] * B[k+3][j];
+            }
+            left = colsA % 4;
+            lowBound = colsA - left;
+            for (k = 0; k < left; k++){
+             totalSum += A[i][lowBound + k] * B[lowBound + k][j];   
+            }
+            totalSum += sum1 + sum2 + sum3 + sum4;
+            dst[i][j] = totalSum;
+        }
+    }
+}
+
+/*
+    Preforms matrix substraction. sets result to dst matrix: dst = A - B
+    Assumes correct dimesnsions of dst (i.e. dst dimensions are (rowsA x colsA) and rowsA == rowsB, colsA == colsB)
+    Paramters:
+        dst - destination matrix
+        A - Matrix A
+        rowsA - number of rows in matrix A
+        colsA - number of columns in matrix A
+        B - Matrix B
+        rowsB - number of rows in matrix B
+        colsB - number of columns in matrix B
+    Return:
+*/
+void sub(double **dst, double **A, double **B, size_t rows, size_t columns){
+    size_t i,j;
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < columns; j++){
+            dst[i][j] = A[i][j] - B[i][j];
+        }
+    }
+}
+
 
 
 
@@ -290,12 +440,13 @@ int main(int argc, char* argv[]){
     Gets goal and input file.
     Does not need kmeans as kmeans only used in python.
     TODO: * Implement wam *
-            Implement ddg
+          * Implement ddg *
             Implement lnorm
             Implement jacboi
     */
    char *input, *operation, c;
-   double **vectors, result;
+   double **vectors, **result, **diag, **weighted, **eyeMatrix;
+   double **multLeft, **multRight, **lnorm;
    size_t length = 1, numberOfVectors=0;
    FILE *input_file;
    
@@ -329,10 +480,11 @@ int main(int argc, char* argv[]){
         return 1;
     }
     rewind(input_file);
-    MEMORY_LIST = malloc(sizeof(void *) * 2);
+    MEMORY_LIST = malloc(sizeof(void *) * 15);
 
     if (!strcmp(operation, "jacobi")){ 
         return 0;
+        freeAllMemory();
     }
 
     /* Parsing vectors from input file */
@@ -340,20 +492,28 @@ int main(int argc, char* argv[]){
 
     /* WAM */
     if (!strcmp(operation, "wam")){
-        // wam(vectors, numberOfVectors, length);
-        wam(vectors, numberOfVectors, length);
+        result = wam(vectors, numberOfVectors, length);
+        printMatrix(result, numberOfVectors, numberOfVectors);
     }
     /* DDG */
-    if (!strcmp(operation, "ddg")){
-        ddg(vectors);
+    else if (!strcmp(operation, "ddg")){
+        result = ddg(vectors, numberOfVectors, length);
+        printMatrix(result, numberOfVectors, numberOfVectors);
     }
 
     /* LNORM */
-    if (!strcmp(operation, "lnorm")){
-        lnorm(vectors);
+    else if (!strcmp(operation, "lnorm")){
+        diag = ddg(vectors, numberOfVectors, length);
+        funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
+        weighted = wam(vectors, numberOfVectors, length);
+        multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+        dot(multLeft, diag, numberOfVectors, numberOfVectors, weighted, numberOfVectors, numberOfVectors);
+        multRight = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+        dot(multRight, multLeft, numberOfVectors, numberOfVectors, diag, numberOfVectors, numberOfVectors);
+        eyeMatrix = eye(numberOfVectors);
+        lnorm = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+        sub(lnorm, eyeMatrix, multRight, numberOfVectors, numberOfVectors);
+        printMatrix(lnorm, numberOfVectors, numberOfVectors);
     }
     freeAllMemory();
-    
-
-
 }
