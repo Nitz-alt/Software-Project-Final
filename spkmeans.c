@@ -177,6 +177,7 @@ void errorMsg(int code){
     }
     if (code == 1)
         printf("An Error Has Occurred");
+    exit(1);
 }
 
 /*
@@ -456,7 +457,7 @@ int main(int argc, char* argv[]){
     operation = argv[1];
     input = argv[2];
 
-    if (!checkTextFormat(input)) return 1; /* File is not a txt or csv file */
+    if (!checkTextFormat(input)) errorMsg(0); /* File is not a txt or csv file */
 
     input_file = fopen(input, "r");
     if (input_file == NULL) errorMsg(0); /* File couldn't be open */
