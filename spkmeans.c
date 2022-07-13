@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 
+
 void **MEMORY_LIST;
 int MEMORY_LIST_INDEX = 0;
 
@@ -332,6 +333,8 @@ double ** ddg(double **matrix, size_t numberOfVectors, size_t length){
 }
 
 /*
+    applying a function to each entry in the matrix.
+    Performed in place.
     Paramters:
         dst_matrix - matrix to apply function on
         numberOfRows - number of rows in matrix
@@ -369,7 +372,7 @@ double **eye(size_t size){
 
 
 /*
-    Preforms matrix multiplication. sets result to dst matrix: dst = AxB
+    Performs matrix multiplication. sets result to dst matrix: dst = AxB
     Assumes correct dimesnsions of dst (i.e. dst dimnesions are (rowsA x colsB) and colsA == rowsB)
     Paramters:
         dst = AxB
@@ -411,7 +414,7 @@ void dot(double **dst, double **A, size_t rowsA, size_t colsA, double **B, size_
 }
 
 /*
-    Preforms matrix substraction. sets result to dst matrix: dst = A - B
+    Performs matrix substraction. sets result to dst matrix: dst = A - B
     Assumes correct dimesnsions of dst (i.e. dst dimensions are (rowsA x colsA) and rowsA == rowsB, colsA == colsB)
     Paramters:
         dst - destination matrix
@@ -432,6 +435,141 @@ void sub(double **dst, double **A, double **B, size_t rows, size_t columns){
     }
 }
 
+/*
+    Performs inplace transpose on a matrix.
+    Paramters:
+        A - Matrix to transpose
+        rows - number of rows in matrix A
+        cols - number of columns in matrix A
+    Return:
+*/
+void transpose(double **A, size_t rows, size_t cols){
+    size_t i,j;
+    double temp;
+    for (i = 0; i < rows; i++){
+        for (j = i+1; j < cols; j++){
+            temp = A[i][j];
+            A[i][j] = A[j][i];
+            A[j][i] = temp;
+        }
+    }
+}
+
+/*
+    Returns the sign of a value.
+    Paramters:
+        value
+    Return:
+        1 for non-negetive values
+        -1 for negetive values
+*/
+int sign(double value){
+    if (value >=0) return 1;
+    return -1;
+}
+
+/*
+    Copies origin matrix to destination matrix.
+    Assumes the destination matrix and the origin matrix are of the same dimensions.
+    Paramters:
+        destination - destination matrix
+        origin - origin matrix
+        rows - number of rows
+        cols - number of columns
+    Return:
+*/
+void copyMatrix(double **destination, double **origin, size_t rows, size_t cols){
+    int i, j;
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < cols; j++){
+            destination[i][j] = origin[i][j];
+        }
+    }
+}
+
+
+/*
+    Calculates c and s according to expressions in the instructions.
+    Paramters:
+        matrix - Matrix to get values from
+        i,j - indexes of the element with the largest absolute value in the matrix
+        c - variable to assign result c in
+        s - variable to assign result s in
+    Retursn:
+        assigns c and s to the variables passed
+*/
+void calcCS(double **matrix, int i, int j, int *c, int *s){
+    double theta,t;
+    theta = (matrix[j][j] - matrix[i][i])/(2 * matrix[i][j]);
+    t = sign(theta) / (abs(theta) + sqrt(pow(theta, 2) + 1));
+    *c = 1/sqrt(pow(t, 2) + 1);
+    *s = t * (*c);
+}
+
+
+double **InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
+    size_t row;
+    size_t i, j;
+    for (i = 0; i < size; i++){
+        for (j = 0; j < size; j++){
+            if (i != j){
+                rotationMatrix[i][i] = 1;
+            }
+            else{
+                rotationMatrix[i][j] = 0;
+            }
+        }
+    }
+    rotationMatrix[row][row] = c;
+    rotationMatrix[col][col] = c;
+    rotationMatrix[row][col] = s;
+    rotationMatrix[col][row] = -s;
+}
+
+
+
+void jacobi(double **matrix, size_t size){
+    double espilon = 1, lowBound;
+    int iterNum = 0, i, j, r;
+    double maxValue = abs(matrix[0][1]);
+    int maxIndexRow = 0, maxIndexCol = 1;
+    double currentValue, c, s;
+    double **matrixPrime = createBlockMatrix(sizeof(double), size, size);
+    double **finalEigenvectors = createBlockMatrix(sizeof(double), size,  size);
+    double **rotationMatrix = createBlockMatrix(sizeof(double), size, size);
+    lowBound = pow(10, -5);
+    while (espilon > lowBound && iterNum <= 100){
+        /*Finding the element with the largest absolute value. The matrix is symmetric */
+        for (i = 0; i < size; i++){
+            for (j = i+1; j < size; j++){
+                currentValue = matrix[i][j];
+                if (abs(currentValue) > maxValue){
+                    maxIndexRow = i;
+                    maxIndexCol = j;
+                    maxValue = abs(currentValue);
+                }
+            }
+        }
+        /* A[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
+        calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);
+        /* Setting A = A' according to expressions */
+        for (r = 0; i < size; i++){
+            if (r != maxIndexRow && r != maxIndexCol){
+                matrixPrime[r][maxIndexRow] = c * matrix[r][maxIndexRow] - s * matrix[r][maxIndexCol];
+                matrixPrime[r][maxIndexCol] = c * matrix[r][maxIndexCol] + s * matrix[r][maxIndexRow];
+            }
+        }
+        matrixPrime[maxIndexRow][maxIndexRow] = c * c * matrix[maxIndexRow][maxIndexRow] + \
+        s * s * matrix[maxIndexCol][maxIndexCol] -\
+        2 * s * c * matrix[maxIndexRow][maxIndexCol];
+        matrixPrime[maxIndexCol][maxIndexCol] = s * s * matrix[maxIndexRow][maxIndexRow] + \
+        c * c * matrix[maxIndexCol][maxIndexCol] +\
+        2 * s * c * matrix[maxIndexRow][maxIndexCol];
+        matrixPrime[maxIndexRow][maxIndexCol] = 0;
+        /* Calculating epsilon */
+    }
+}
+
 
 
 
@@ -440,9 +578,9 @@ int main(int argc, char* argv[]){
     /*
     Gets goal and input file.
     Does not need kmeans as kmeans only used in python.
-    TODO: * Implement wam *
-          * Implement ddg *
-            Implement lnorm
+    TODO: * Implement wam 
+          * Implement ddg 
+          * Implement lnorm
             Implement jacboi
     */
    char *input, *operation, c;
@@ -450,7 +588,6 @@ int main(int argc, char* argv[]){
    double **multLeft, **multRight, **lnorm;
    size_t length = 1, numberOfVectors=0;
    FILE *input_file;
-   
    
     if (argc != 3) return 1;
 
@@ -484,8 +621,9 @@ int main(int argc, char* argv[]){
     MEMORY_LIST = malloc(sizeof(void *) * 15);
 
     if (!strcmp(operation, "jacobi")){ 
-        return 0;
-        freeAllMemory();
+        iterNum = 0;
+        epsilon = 0;
+
     }
 
     /* Parsing vectors from input file */
