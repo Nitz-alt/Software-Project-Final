@@ -123,15 +123,17 @@ void printAr(double *ar, int size){
         if (i == size-1){
             suffix = '\n';
         }
-        printf("%.4f%c", ar[i], suffix);
+        printf("%lf%c", ar[i], suffix);
     }
 }
 
 void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
+    printf("****\n");
     int i;
     for (i=0; i < numberOfRows; i++){
         printAr(array[i], numberOfColumns);
     }
+    printf("****\n");
 }
 
 /*
@@ -519,15 +521,16 @@ void calcCS(double **matrix, int i, int j, double *c, double *s){
         
 */
 void InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
-    size_t i, j;
+    size_t i, j, value;
     for (i = 0; i < size; i++){
         for (j = 0; j < size; j++){
             if (i != j){
-                rotationMatrix[i][i] = 0;
+                value = 0;
             }
             else{
-                rotationMatrix[i][j] = 1;
+                value = 1;
             }
+            rotationMatrix[i][j] = value;
         }
     }
     rotationMatrix[row][row] = c;
@@ -559,7 +562,7 @@ double off(double **matrix, size_t dim){
 
 
 void jacobi(double **matrix, size_t dim){
-    double espilon = 1, lowBound;
+    double espilon = 1, convergence;
     int iterNum = 1, i, j, r;
     double maxValue = abs(matrix[0][1]);
     int maxIndexRow = 0, maxIndexCol = 1;
@@ -570,9 +573,12 @@ void jacobi(double **matrix, size_t dim){
     double **tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
     double offA, offA_prime, **temp;
     char suffix;
-    lowBound = pow(10, -5);
-    while (espilon > lowBound && iterNum <= 100){
+    convergence = pow(10, -5);
+    while (espilon > convergence && iterNum <= 100){
         /*Finding the off-diagonal element with the largest absolute value. The matrix is symmetric */
+        maxValue = abs(matrix[0][1]);
+        maxIndexRow = 0;
+        maxIndexCol = 1;
         for (i = 0; i < dim; i++){
             for (j = i + 1; j < dim; j++){
                 currentValue = matrix[i][j];
@@ -584,14 +590,14 @@ void jacobi(double **matrix, size_t dim){
             }
         }
         
-        /* A[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
+        /* matrix[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
         calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);
         /* Calculating off(A) */
         offA = off(matrix, dim);
         /* Copying A to A prime */
         copyMatrix(matrixPrime, matrix, dim, dim);
         /* Calculating change of A to A' */
-        for (r = 0; i < dim; i++){
+        for (r = 0; r < dim; r++){
             if (r != maxIndexRow && r != maxIndexCol){
                 matrixPrime[r][maxIndexRow] = c * matrix[r][maxIndexRow] - s * matrix[r][maxIndexCol];
                 matrixPrime[r][maxIndexCol] = c * matrix[r][maxIndexCol] + s * matrix[r][maxIndexRow];
@@ -608,7 +614,7 @@ void jacobi(double **matrix, size_t dim){
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
-        espilon = offA - offA_prime;
+        espilon = abs(offA - offA_prime);
         /* Setting A = A' according to expressions */
         temp = matrix;
         matrix = matrixPrime;
@@ -616,6 +622,7 @@ void jacobi(double **matrix, size_t dim){
 
         /* Calculating eigenvalues */
         InitRotationMatrix(rotationMatrix, dim, maxIndexRow, maxIndexCol, c, s);
+        printMatrix(rotationMatrix, dim, dim);
         if (iterNum != 1){
             copyMatrix(tempEigenvectors, finalEigenvectors, dim, dim);
             dot(finalEigenvectors, tempEigenvectors, dim, dim, rotationMatrix, dim, dim);
