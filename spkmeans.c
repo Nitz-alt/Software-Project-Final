@@ -128,12 +128,10 @@ void printAr(double *ar, int size){
 }
 
 void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
-    printf("****\n");
     int i;
     for (i=0; i < numberOfRows; i++){
         printAr(array[i], numberOfColumns);
     }
-    printf("****\n");
 }
 
 /*
@@ -241,10 +239,10 @@ double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
         vector = matrix[i];
         for (j = 0; j < length; j++){
             if (j != length - 1){
-                fscanf(input, "%lf,", (vector + j));
+                if (fscanf(input, "%lf,", (vector + j)) != 1) errorMsg(1);
             }
             else{
-                fscanf(input, "%lf\n", (vector + j));
+                if (fscanf(input, "%lf\n", (vector + j)) != 1) errorMsg(1);
             }
         }
     }
@@ -503,7 +501,7 @@ void copyMatrix(double **destination, double **origin, size_t rows, size_t cols)
 void calcCS(double **matrix, int i, int j, double *c, double *s){
     double theta,t;
     theta = (matrix[j][j] - matrix[i][i])/(2 * matrix[i][j]);
-    t = sign(theta) / (abs(theta) + sqrt(pow(theta, 2) + 1));
+    t = sign(theta) / (fabs(theta) + sqrt(pow(theta, 2) + 1));
     *c = 1/sqrt(pow(t, 2) + 1);
     *s = t * (*c);
 }
@@ -560,11 +558,17 @@ double off(double **matrix, size_t dim){
 
 
 
-
+/*
+    Calculates and prints the matrix's eigenvalues and eigenvectors
+    Paramters:
+        matrix - Matrix to run jacobi algorithm on. Assumes the matrix is symmetrical (Maybe needs checking in the main body)
+        dim - Dimension of the matrix (i.e. the dimensions of the matrix are dim X dim)
+    Return:
+*/
 void jacobi(double **matrix, size_t dim){
     double espilon = 1, convergence;
     int iterNum = 1, i, j, r;
-    double maxValue = abs(matrix[0][1]);
+    double maxValue = fabs(matrix[0][1]);
     int maxIndexRow = 0, maxIndexCol = 1;
     double currentValue, c, s;
     double **matrixPrime = createBlockMatrix(sizeof(double), dim, dim);
@@ -576,16 +580,16 @@ void jacobi(double **matrix, size_t dim){
     convergence = pow(10, -5);
     while (espilon > convergence && iterNum <= 100){
         /*Finding the off-diagonal element with the largest absolute value. The matrix is symmetric */
-        maxValue = abs(matrix[0][1]);
+        maxValue = fabs(matrix[0][1]);
         maxIndexRow = 0;
         maxIndexCol = 1;
         for (i = 0; i < dim; i++){
             for (j = i + 1; j < dim; j++){
                 currentValue = matrix[i][j];
-                if (abs(currentValue) > maxValue){
+                if (fabs(currentValue) > maxValue){
                     maxIndexRow = i;
                     maxIndexCol = j;
-                    maxValue = abs(currentValue);
+                    maxValue = fabs(currentValue);
                 }
             }
         }
@@ -597,32 +601,34 @@ void jacobi(double **matrix, size_t dim){
         /* Copying A to A prime */
         copyMatrix(matrixPrime, matrix, dim, dim);
         /* Calculating change of A to A' */
+        /* Note that changes should be made symetrically  */
         for (r = 0; r < dim; r++){
             if (r != maxIndexRow && r != maxIndexCol){
                 matrixPrime[r][maxIndexRow] = c * matrix[r][maxIndexRow] - s * matrix[r][maxIndexCol];
+                matrixPrime[maxIndexRow][r] = c * matrix[r][maxIndexRow] - s * matrix[r][maxIndexCol];
+
                 matrixPrime[r][maxIndexCol] = c * matrix[r][maxIndexCol] + s * matrix[r][maxIndexRow];
+                matrixPrime[maxIndexCol][r] = c * matrix[r][maxIndexCol] + s * matrix[r][maxIndexRow];
+                
             }
         }
         /* Note that maxIndexRow and maxIndexCol cannot be equal as they're coordinates of an off-diagonal element */
-        matrixPrime[maxIndexRow][maxIndexRow] = c * c * matrix[maxIndexRow][maxIndexRow] + \
-        s * s * matrix[maxIndexCol][maxIndexCol] -\
-        2 * s * c * matrix[maxIndexRow][maxIndexCol];
-        matrixPrime[maxIndexCol][maxIndexCol] = s * s * matrix[maxIndexRow][maxIndexRow] + \
-        c * c * matrix[maxIndexCol][maxIndexCol] +\
-        2 * s * c * matrix[maxIndexRow][maxIndexCol];
+        matrixPrime[maxIndexRow][maxIndexRow] = c * c * matrix[maxIndexRow][maxIndexRow] + s * s * matrix[maxIndexCol][maxIndexCol] -2 * s * c * matrix[maxIndexRow][maxIndexCol];
+        matrixPrime[maxIndexCol][maxIndexCol] = s * s * matrix[maxIndexRow][maxIndexRow] + c * c * matrix[maxIndexCol][maxIndexCol] + 2 * s * c * matrix[maxIndexRow][maxIndexCol];
+
         matrixPrime[maxIndexRow][maxIndexCol] = 0;
+        matrixPrime[maxIndexCol][maxIndexRow] = 0;
+
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
-        espilon = abs(offA - offA_prime);
+        espilon = fabs(offA - offA_prime);
         /* Setting A = A' according to expressions */
         temp = matrix;
         matrix = matrixPrime;
         matrixPrime = temp;
-
         /* Calculating eigenvalues */
         InitRotationMatrix(rotationMatrix, dim, maxIndexRow, maxIndexCol, c, s);
-        printMatrix(rotationMatrix, dim, dim);
         if (iterNum != 1){
             copyMatrix(tempEigenvectors, finalEigenvectors, dim, dim);
             dot(finalEigenvectors, tempEigenvectors, dim, dim, rotationMatrix, dim, dim);
@@ -694,22 +700,26 @@ int main(int argc, char* argv[]){
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
 
+    /* Closing file */
+    fclose(input_file);
+
+    /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
         jacobi(vectors, numberOfVectors);
     }
 
-    /* WAM */
+    /* Wam */
     if (!strcmp(operation, "wam")){
         result = wam(vectors, numberOfVectors, length);
         printMatrix(result, numberOfVectors, numberOfVectors);
     }
-    /* DDG */
+    /* Ddg */
     else if (!strcmp(operation, "ddg")){
         result = ddg(vectors, numberOfVectors, length);
         printMatrix(result, numberOfVectors, numberOfVectors);
     }
 
-    /* LNORM */
+    /* Lnorm */
     else if (!strcmp(operation, "lnorm")){
         diag = ddg(vectors, numberOfVectors, length);
         funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
