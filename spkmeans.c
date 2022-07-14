@@ -495,10 +495,10 @@ void copyMatrix(double **destination, double **origin, size_t rows, size_t cols)
         i,j - indexes of the element with the largest absolute value in the matrix
         c - variable to assign result c in
         s - variable to assign result s in
-    Retursn:
+    Return:
         assigns c and s to the variables passed
 */
-void calcCS(double **matrix, int i, int j, int *c, int *s){
+void calcCS(double **matrix, int i, int j, double *c, double *s){
     double theta,t;
     theta = (matrix[j][j] - matrix[i][i])/(2 * matrix[i][j]);
     t = sign(theta) / (abs(theta) + sqrt(pow(theta, 2) + 1));
@@ -507,16 +507,26 @@ void calcCS(double **matrix, int i, int j, int *c, int *s){
 }
 
 
-double **InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
-    size_t row;
+/*
+    initialises the matrix to a rotation matrix P(row, col) as in instructions. initialises inplace
+    Paramters:
+        rotationMatrix - Matrix to transform into a rotation matrix
+        row,col - indexes of the element with the largest absolute value in the matrix
+        c - value of c as in example
+        s - value of s as in example
+    Return:
+        
+        
+*/
+void InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
     size_t i, j;
     for (i = 0; i < size; i++){
         for (j = 0; j < size; j++){
             if (i != j){
-                rotationMatrix[i][i] = 1;
+                rotationMatrix[i][i] = 0;
             }
             else{
-                rotationMatrix[i][j] = 0;
+                rotationMatrix[i][j] = 1;
             }
         }
     }
@@ -526,22 +536,45 @@ double **InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, si
     rotationMatrix[col][row] = -s;
 }
 
+/*
+    Calculates off function of a matrix. Assumes the matrix is symmetrical.
+    Paramters:
+        matrix - Matrix to calculed off of.
+        row,col - number of rows and columns in the matrix.
+    Return:
+        off(matrix)
+*/
+double off(double **matrix, size_t dim){
+    int i,j;
+    double sum;
+    for (i = 0; i < dim; i++){
+        for (j = i + 1; j < dim; j++){
+            sum += pow(matrix[i][j], 2);
+        }
+    }
+    return sum * 2;
+}
 
 
-void jacobi(double **matrix, size_t size){
+
+
+void jacobi(double **matrix, size_t dim){
     double espilon = 1, lowBound;
-    int iterNum = 0, i, j, r;
+    int iterNum = 1, i, j, r;
     double maxValue = abs(matrix[0][1]);
     int maxIndexRow = 0, maxIndexCol = 1;
     double currentValue, c, s;
-    double **matrixPrime = createBlockMatrix(sizeof(double), size, size);
-    double **finalEigenvectors = createBlockMatrix(sizeof(double), size,  size);
-    double **rotationMatrix = createBlockMatrix(sizeof(double), size, size);
+    double **matrixPrime = createBlockMatrix(sizeof(double), dim, dim);
+    double **finalEigenvectors = createBlockMatrix(sizeof(double), dim,  dim);
+    double **rotationMatrix = createBlockMatrix(sizeof(double), dim, dim);
+    double **tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
+    double offA, offA_prime, **temp;
+    char suffix;
     lowBound = pow(10, -5);
     while (espilon > lowBound && iterNum <= 100){
-        /*Finding the element with the largest absolute value. The matrix is symmetric */
-        for (i = 0; i < size; i++){
-            for (j = i+1; j < size; j++){
+        /*Finding the off-diagonal element with the largest absolute value. The matrix is symmetric */
+        for (i = 0; i < dim; i++){
+            for (j = i + 1; j < dim; j++){
                 currentValue = matrix[i][j];
                 if (abs(currentValue) > maxValue){
                     maxIndexRow = i;
@@ -550,15 +583,21 @@ void jacobi(double **matrix, size_t size){
                 }
             }
         }
+        
         /* A[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
         calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);
-        /* Setting A = A' according to expressions */
-        for (r = 0; i < size; i++){
+        /* Calculating off(A) */
+        offA = off(matrix, dim);
+        /* Copying A to A prime */
+        copyMatrix(matrixPrime, matrix, dim, dim);
+        /* Calculating change of A to A' */
+        for (r = 0; i < dim; i++){
             if (r != maxIndexRow && r != maxIndexCol){
                 matrixPrime[r][maxIndexRow] = c * matrix[r][maxIndexRow] - s * matrix[r][maxIndexCol];
                 matrixPrime[r][maxIndexCol] = c * matrix[r][maxIndexCol] + s * matrix[r][maxIndexRow];
             }
         }
+        /* Note that maxIndexRow and maxIndexCol cannot be equal as they're coordinates of an off-diagonal element */
         matrixPrime[maxIndexRow][maxIndexRow] = c * c * matrix[maxIndexRow][maxIndexRow] + \
         s * s * matrix[maxIndexCol][maxIndexCol] -\
         2 * s * c * matrix[maxIndexRow][maxIndexCol];
@@ -566,8 +605,33 @@ void jacobi(double **matrix, size_t size){
         c * c * matrix[maxIndexCol][maxIndexCol] +\
         2 * s * c * matrix[maxIndexRow][maxIndexCol];
         matrixPrime[maxIndexRow][maxIndexCol] = 0;
+        /* Calculating off(A') */
+        offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
+        espilon = offA - offA_prime;
+        /* Setting A = A' according to expressions */
+        temp = matrix;
+        matrix = matrixPrime;
+        matrixPrime = temp;
+
+        /* Calculating eigenvalues */
+        InitRotationMatrix(rotationMatrix, dim, maxIndexRow, maxIndexCol, c, s);
+        if (iterNum != 1){
+            copyMatrix(tempEigenvectors, finalEigenvectors, dim, dim);
+            dot(finalEigenvectors, tempEigenvectors, dim, dim, rotationMatrix, dim, dim);
+        }
+        else{
+            copyMatrix(finalEigenvectors, rotationMatrix, dim, dim);
+        }
+        iterNum++;
     }
+    /* Printing result */
+    suffix = ',';
+    for (i = 0; i < dim; i++){
+        if (i == dim - 1) suffix = '\n';
+        printf("%lf%c",matrix[i][i], suffix);
+    }
+    printMatrix(finalEigenvectors, dim, dim);
 }
 
 
@@ -620,14 +684,12 @@ int main(int argc, char* argv[]){
     rewind(input_file);
     MEMORY_LIST = malloc(sizeof(void *) * 15);
 
-    if (!strcmp(operation, "jacobi")){ 
-        iterNum = 0;
-        epsilon = 0;
-
-    }
-
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
+
+    if (!strcmp(operation, "jacobi")){ 
+        jacobi(vectors, numberOfVectors);
+    }
 
     /* WAM */
     if (!strcmp(operation, "wam")){
