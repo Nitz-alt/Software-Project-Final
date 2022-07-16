@@ -63,52 +63,6 @@ void copyToArray(double dst[], double origin[], int size){
     }
 }
 
-
-/*
-    Paramters:
-        centeroids - Centrdoids array
-        clusters - Clusters array
-        clusterSizes - Array containing sizes of the clusters. clusterSizes[i] = len(clusters[i])
-        length - Lenght of the vectors
-        K - number of centeroids
-    Return:
-        double - maximum delta of the centeroids
-*/
-double UpdateCenteroids(double **centeroids, double ** clusters[], int clusterSizes[], int const length, int const K){
-    double max_epsilon = 0;
-    int i;
-    double sum=0;
-    double dist;
-    double **old_centeroids = (double **) malloc(K * sizeof(double *));
-    for (i=0; i < K; i++){
-        old_centeroids[i] = malloc(sizeof(double) * length);
-        copyToArray(old_centeroids[i], centeroids[i], length);
-    }
-    for (i=0; i < K; i++){
-        /* For each cluster */
-        int j;
-        for (j = 0; j < length; j++){
-            /* Cordinate in vector */
-            int m;
-            for (m = 0; m < clusterSizes[i]; m++){
-                /* For each vector in the cluster*/
-                sum += clusters[i][m][j];
-            }
-            sum = sum / (double) clusterSizes[i];
-            centeroids[i][j] = sum;
-            sum = 0;
-        }
-    }
-
-    for (i = 0; i < K; i++){
-        dist = eucleadDist(old_centeroids[i], centeroids[i], length);
-        max_epsilon = dist > max_epsilon ? dist : max_epsilon;
-        free(old_centeroids[i]);
-    }
-    free(old_centeroids);
-    return sqrt(max_epsilon);
-}
-
 /*
     Paramters:
         ar - array to print
@@ -216,6 +170,38 @@ int checkTextFormat(char *fileName){
     return 0;
 }
 
+
+/*
+    Allocates a matrix of dimension numberOfRows X numberOfColumns.
+    The memory is allocate as a block.
+    Paramters:
+        numberOfRows - number of rows to in the matrix to allocate
+        numberOfColumns - number of columns in the matrix to allocate
+    Return:
+        returns the pointer to the memory that was allocated
+        
+*/
+double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
+    size_t i;
+    double *block = (double *) malloc(size * numberOfRows * numberOfColumns);
+    double **matrix = (double **) malloc(size * numberOfRows);
+    for (i = 0; i < numberOfRows; i++){
+        matrix[i] = block + i * numberOfColumns;
+    }
+    return matrix;
+}
+
+/*  
+    Frees a memory allocated as a block
+    Paramters:
+        ptr - Pointer to the memory allocated as a block.
+    Return:
+*/
+void freeBlock(void **ptr){
+    free(*ptr);
+    free(ptr);
+}
+
 /*
     Paramters:
         input - File to parse vectors from
@@ -226,13 +212,8 @@ int checkTextFormat(char *fileName){
 */
 double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
     size_t i,j;
-    double *block = allocMemory(sizeof(double) * numberOfVectors * length);
-    double ** matrix = allocMemory(sizeof(double *) * numberOfVectors);
+    double ** matrix = createBlockMatrix(sizeof(double), numberOfVectors, length);
     double *vector;
-
-    for (i = 0; i < numberOfVectors; i++){
-        matrix[i] = block + i * length;
-    }
 
     for (i = 0; i < numberOfVectors; i++){
         vector = matrix[i];
@@ -244,24 +225,6 @@ double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
                 if (fscanf(input, "%lf\n", (vector + j)) != 1) errorMsg(1);
             }
         }
-    }
-    return matrix;
-}
-
-/*
-    Paramters:
-        numberOfRows - number of rows to in the matrix to allocate
-        numberOfColumns - number of columns in the matrix to allocate
-    Return:
-        returns the pointer to the memory that was allocated
-        
-*/
-double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
-    size_t i;
-    double *block = (double *) allocMemory(size * numberOfRows * numberOfColumns);
-    double **matrix = (double **) allocMemory(size * numberOfRows);
-    for (i = 0; i < numberOfRows; i++){
-        matrix[i] = block + i * numberOfColumns;
     }
     return matrix;
 }
@@ -513,8 +476,6 @@ void calcCS(double **matrix, int i, int j, double *c, double *s){
         c - value of c as in example
         s - value of s as in example
     Return:
-        
-        
 */
 void InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
     size_t i, j, value;
@@ -562,19 +523,24 @@ double off(double **matrix, size_t dim){
         matrix - Matrix to run jacobi algorithm on. Assumes the matrix is symmetrical (Maybe needs checking in the main body)
         dim - Dimension of the matrix (i.e. the dimensions of the matrix are dim X dim)
     Return:
+        A matrix of dimensions (dim + 1 X dim).  The first row is the eigenvalues and the other rows are the eigenvectors.
 */
-void jacobi(double **matrix, size_t dim){
+double ** jacobi(double **vectors, size_t dim){
     double espilon = 1, convergence;
     size_t iterNum = 1, i, j, r;
-    double maxValue = fabs(matrix[0][1]);
+    double maxValue;
     size_t maxIndexRow = 0, maxIndexCol = 1;
     double currentValue, c, s;
+    double **matrix = createBlockMatrix(sizeof(double), dim, dim);
     double **matrixPrime = createBlockMatrix(sizeof(double), dim, dim);
     double **finalEigenvectors = createBlockMatrix(sizeof(double), dim,  dim);
     double **rotationMatrix = createBlockMatrix(sizeof(double), dim, dim);
     double **tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
+    double **result;
     double offA, offA_prime, **temp;
-    char suffix;
+    copyMatrix(matrix, vectors, dim, dim);
+    maxValue = fabs(matrix[0][1]);
+    /*char suffix;*/
     convergence = pow(10, -5);
     while (espilon > convergence && iterNum <= 100){
         /*Finding the off-diagonal element with the largest absolute value. The matrix is symmetric */
@@ -637,14 +603,45 @@ void jacobi(double **matrix, size_t dim){
         iterNum++;
     }
     /* Printing result */
-    suffix = ',';
+    /*suffix = ',';
     for (i = 0; i < dim; i++){
         if (i == dim - 1) suffix = '\n';
         printf("%.4f%c",matrix[i][i], suffix);
     }
     printMatrix(finalEigenvectors, dim, dim);
+    */
+    result = createBlockMatrix(sizeof(double), dim + 1, dim + 1);
+    for (i = 0; i < dim; i++){
+        result[0][i] = matrix[i][i];
+    }
+    copyMatrix((result + 1), finalEigenvectors, dim, dim);
+    freeBlock((void **) matrixPrime);
+    freeBlock((void **)finalEigenvectors);
+    freeBlock((void **)rotationMatrix);
+    freeBlock((void **)tempEigenvectors);
+    return result;
 }
 
+double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
+    double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
+    diag = ddg(vectors, numberOfVectors, length);
+    funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
+    weighted = wam(vectors, numberOfVectors, length);
+    multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    dot(multLeft, diag, numberOfVectors, numberOfVectors, weighted, numberOfVectors, numberOfVectors);
+    multRight = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    dot(multRight, multLeft, numberOfVectors, numberOfVectors, diag, numberOfVectors, numberOfVectors);
+    eyeMatrix = eye(numberOfVectors);
+    lnorm = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    sub(lnorm, eyeMatrix, multRight, numberOfVectors, numberOfVectors);
+    printMatrix(lnorm, numberOfVectors, numberOfVectors);
+    freeBlock((void **)diag);
+    freeBlock((void **)weighted);
+    freeBlock((void **)multLeft);
+    freeBlock((void **)multRight);
+    freeBlock((void **)eyeMatrix);
+    return lnorm;
+}
 
 
 
@@ -659,8 +656,7 @@ int main(int argc, char* argv[]){
             Implement jacboi
     */
    char *input, *operation, c;
-   double **vectors, **result, **diag, **weighted, **eyeMatrix;
-   double **multLeft, **multRight, **lnorm;
+   double **vectors, **result;
    size_t length = 1, numberOfVectors=0;
    FILE *input_file;
    
@@ -703,7 +699,8 @@ int main(int argc, char* argv[]){
 
     /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
-        jacobi(vectors, numberOfVectors);
+        result = jacobi(vectors, numberOfVectors);
+        printMatrix(result, numberOfVectors + 1, numberOfVectors);
     }
 
     /* Wam */
@@ -719,18 +716,10 @@ int main(int argc, char* argv[]){
 
     /* Lnorm */
     else if (!strcmp(operation, "lnorm")){
-        diag = ddg(vectors, numberOfVectors, length);
-        funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
-        weighted = wam(vectors, numberOfVectors, length);
-        multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
-        dot(multLeft, diag, numberOfVectors, numberOfVectors, weighted, numberOfVectors, numberOfVectors);
-        multRight = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
-        dot(multRight, multLeft, numberOfVectors, numberOfVectors, diag, numberOfVectors, numberOfVectors);
-        eyeMatrix = eye(numberOfVectors);
-        lnorm = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
-        sub(lnorm, eyeMatrix, multRight, numberOfVectors, numberOfVectors);
-        printMatrix(lnorm, numberOfVectors, numberOfVectors);
+        result = lnorm(vectors, numberOfVectors, length);
+        
     }
-    freeAllMemory();
+    freeBlock((void **)result);
+    freeBlock((void **)vectors);
     return 0;
 }
