@@ -4,10 +4,6 @@
 #include <string.h>
 
 
-void **MEMORY_LIST;
-size_t MEMORY_LIST_INDEX = 0;
-
-
 /*
     Paramters:
         x - Vector 1
@@ -22,32 +18,6 @@ double eucleadDist(double x[], double y[], int length){
         dist += (x[i] - y[i]) * (x[i] - y[i]);
     }
     return dist;
-}
-
-/* 
-    Parameters:
-        coordinate - Specific coordinate to check to which cluster it needs to be assigned
-        centeroids = Centeroids list
-        K - number of Centeroids
-        Length - Length of the vectors
-    Return:
-        int - Returns the index of the cluster the the coordinates need to be assigned to
-*/
-int ArgMin(double coordiante[], double * centeroids[], int const K, int length){
-    double min_dist;
-    double tmp_min_dist;
-    int min_dist_index = 0;
-    int i;
-    /* Sets min dist to first distance */
-    min_dist = eucleadDist(coordiante, centeroids[0], length);
-    for (i=0; i< K; i++){
-        tmp_min_dist = eucleadDist(coordiante, centeroids[i], length);
-        if (tmp_min_dist < min_dist){
-            min_dist = tmp_min_dist;
-            min_dist_index = i;
-        }
-    }
-    return min_dist_index;
 }
 
 /*
@@ -105,25 +75,6 @@ int convertToInt(char number[]){
     return atoi(number);
 }
 
-/*
-    Frees all memory allocated throughout the program
-    Paramters:
-        None
-    Return:
-        void
-*/
-void freeAllMemory(){
-    size_t i;
-    for(i = 0 ; i < MEMORY_LIST_INDEX; i++){
-        if (MEMORY_LIST[i] != NULL){
-            free(MEMORY_LIST[i]);
-        }
-    }
-    if (MEMORY_LIST != NULL){
-        free(MEMORY_LIST);
-    }
-}
-
 void errorMsg(int code){
     /* Free memory */
     freeAllMemory();
@@ -134,23 +85,6 @@ void errorMsg(int code){
         printf("An Error Has Occurred");
     exit(1);
 }
-
-/*
-    Paramters:
-        size - size of memory to be allocated
-    Return:
-        Pointer to the new memory allocated
-*/
-void * allocMemory(size_t size){
-    void *memoToAssign = malloc(size);
-    if (memoToAssign == NULL){
-        errorMsg(1);
-        exit(1);
-    }
-    MEMORY_LIST[MEMORY_LIST_INDEX++] = memoToAssign;
-    return memoToAssign;
-}
-
 
 /*
     Paramters:
@@ -184,7 +118,9 @@ int checkTextFormat(char *fileName){
 double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
     size_t i;
     double *block = (double *) malloc(size * numberOfRows * numberOfColumns);
+    if (block == NULL) errorMsg(1);
     double **matrix = (double **) malloc(size * numberOfRows);
+    if (matrix == NULL) errorMsg(1);
     for (i = 0; i < numberOfRows; i++){
         matrix[i] = block + i * numberOfColumns;
     }
@@ -197,7 +133,7 @@ double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColu
         ptr - Pointer to the memory allocated as a block.
     Return:
 */
-void freeBlock(void **ptr){
+void freeBlock(double **ptr){
     free(*ptr);
     free(ptr);
 }
@@ -210,7 +146,7 @@ void freeBlock(void **ptr){
     Return:
         A matrix of the vectors parsed from the file
 */
-double ** parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
+double **parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
     size_t i,j;
     double ** matrix = createBlockMatrix(sizeof(double), numberOfVectors, length);
     double *vector;
@@ -538,6 +474,8 @@ double ** jacobi(double **vectors, size_t dim){
     double **tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
     double **result;
     double offA, offA_prime, **temp;
+
+    /* Copying vectors to new matrix. Easier to maintain memory this way.*/
     copyMatrix(matrix, vectors, dim, dim);
     maxValue = fabs(matrix[0][1]);
     /*char suffix;*/
@@ -602,23 +540,16 @@ double ** jacobi(double **vectors, size_t dim){
         }
         iterNum++;
     }
-    /* Printing result */
-    /*suffix = ',';
-    for (i = 0; i < dim; i++){
-        if (i == dim - 1) suffix = '\n';
-        printf("%.4f%c",matrix[i][i], suffix);
-    }
-    printMatrix(finalEigenvectors, dim, dim);
-    */
     result = createBlockMatrix(sizeof(double), dim + 1, dim + 1);
     for (i = 0; i < dim; i++){
         result[0][i] = matrix[i][i];
     }
     copyMatrix((result + 1), finalEigenvectors, dim, dim);
-    freeBlock((void **) matrixPrime);
-    freeBlock((void **)finalEigenvectors);
-    freeBlock((void **)rotationMatrix);
-    freeBlock((void **)tempEigenvectors);
+    freeBlock(matrixPrime);
+    freeBlock(finalEigenvectors);
+    freeBlock(rotationMatrix);
+    freeBlock(tempEigenvectors);
+    freeBlock(matrix);
     return result;
 }
 
@@ -635,11 +566,11 @@ double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
     lnorm = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     sub(lnorm, eyeMatrix, multRight, numberOfVectors, numberOfVectors);
     printMatrix(lnorm, numberOfVectors, numberOfVectors);
-    freeBlock((void **)diag);
-    freeBlock((void **)weighted);
-    freeBlock((void **)multLeft);
-    freeBlock((void **)multRight);
-    freeBlock((void **)eyeMatrix);
+    freeBlock(diag);
+    freeBlock(weighted);
+    freeBlock(multLeft);
+    freeBlock(multRight);
+    freeBlock(eyeMatrix);
     return lnorm;
 }
 
@@ -689,7 +620,6 @@ int main(int argc, char* argv[]){
         return 1;
     }
     rewind(input_file);
-    MEMORY_LIST = malloc(sizeof(void *) * 15);
 
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
@@ -717,9 +647,9 @@ int main(int argc, char* argv[]){
     /* Lnorm */
     else if (!strcmp(operation, "lnorm")){
         result = lnorm(vectors, numberOfVectors, length);
-        
+        printMatrix(result, numberOfVectors, numberOfVectors);
     }
-    freeBlock((void **)result);
-    freeBlock((void **)vectors);
+    freeBlock(result);
+    freeBlock(vectors);
     return 0;
 }
