@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-
+#include "spkmeans.h"
 
 /*
     Paramters:
@@ -51,6 +51,14 @@ void printAr(double *ar, size_t size){
     }
 }
 
+/*
+    Prints a matrix
+    Paramters:
+        array - matrix to print
+        numberOfRows - number of rows
+        numberOfColumns - number of columns
+    Return:
+*/
 void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
     size_t i;
     for (i=0; i < numberOfRows; i++){
@@ -103,6 +111,166 @@ int checkTextFormat(char *fileName){
     return 0;
 }
 
+/* 
+    Parameters:
+        coordinate - Specific coordinate to check to which cluster it needs to be assigned
+        centeroids = Centeroids list
+        K - number of Centeroids
+        Length - Length of the vectors
+    Return:
+        int - Returns the index of the cluster the the coordinates need to be assigned to
+*/
+int ArgMin(double coordiante[], double * centeroids[], int const K, int length){
+    double min_dist;
+    double tmp_min_dist;
+    int min_dist_index = 0;
+    int i;
+    /* Sets min dist to first distance */
+    min_dist = eucleadDist(coordiante, centeroids[0], length);
+    for (i=0; i< K; i++){
+        tmp_min_dist = eucleadDist(coordiante, centeroids[i], length);
+        if (tmp_min_dist < min_dist){
+            min_dist = tmp_min_dist;
+            min_dist_index = i;
+        }
+    }
+    return min_dist_index;
+}
+
+/*
+    Paramters:
+        centeroids - Centrdoids array
+        clusters - Clusters array
+        clusterSizes - Array containing sizes of the clusters. clusterSizes[i] = len(clusters[i])
+        length - Lenght of the vectors
+        K - number of centeroids
+    Return:
+        double - maximum delta of the centeroids
+*/
+double UpdateCenteroids(double **centeroids, double ** clusters[], int clusterSizes[], int const length, int const K){
+    double max_epsilon = 0;
+    int i;
+    double sum=0;
+    double dist;
+    double **old_centeroids = (double **) malloc(K * sizeof(double *));
+    for (i=0; i < K; i++){
+        old_centeroids[i] = malloc(sizeof(double) * length);
+        copyToArray(old_centeroids[i], centeroids[i], length);
+    }
+    for (i=0; i < K; i++){
+        /* For each cluster */
+        int j;
+        for (j = 0; j < length; j++){
+            /* Cordinate in vector */
+            int m;
+            for (m = 0; m < clusterSizes[i]; m++){
+                /* For each vector in the cluster*/
+                sum += clusters[i][m][j];
+            }
+            sum = sum / (double) clusterSizes[i];
+            centeroids[i][j] = sum;
+            sum = 0;
+        }
+    }
+
+    for (i = 0; i < K; i++){
+        dist = eucleadDist(old_centeroids[i], centeroids[i], length);
+        max_epsilon = dist > max_epsilon ? dist : max_epsilon;
+        free(old_centeroids[i]);
+    }
+    free(old_centeroids);
+    return sqrt(max_epsilon);
+}
+
+
+/*  
+    Frees an of all pointers in the array and the array
+    Paramters:
+        ptr - an array of pointers to memory.
+    Return:
+*/
+void freeArray(double ***array, size_t len){
+    size_t i;
+    for (i = 0; i < len; i++){
+        free(array[i]);
+    }
+    free(array);
+}
+
+
+
+/*  
+    kmeans algortihm.
+    Paramters:
+        centeroids - initial centroids array.
+        vectors - All vectors to classify
+        length - length of the vectors
+        numberOfVectors - number of the vectors
+        K - number of clusters
+        EPSILON - epsilon for stopping
+        MAX_ITER - max iterations count
+    Return:
+        returns the final centroids. NOTE THAT THE FUNCTION CHANGES THEM IN PLACE ANYWAY.
+*/
+double **kmeans(double ** centeroids, double ** vectors, int const length, int const numberOfVectors, int const K, double const EPSILON, int const MAX_ITER){
+    int iter_num = 1;
+    double max_epsilon = EPSILON + 1;
+    int clusterIndex;
+    int i,j,t, memoryListIndex = 0;
+    int *clusterSizes;
+    double ***clusters;
+    double ***memory;
+    /**
+     * Memory size calculation (only of double **)
+     * 1 - clusters list
+     * K - actual clusters
+     */
+    memory = (double ***) malloc(sizeof(double **) * K + 1);
+    if (memory == NULL) return NULL;
+    /*Allocate cluster*/
+    clusters = (double ***) malloc(sizeof(double **) * K);
+    if (clusters == NULL){
+        freeArray(memory, memoryListIndex);
+        return NULL;
+    }
+    memory[memoryListIndex++] = (double **)clusters;
+    for (i = 0; i < K; i++){
+        clusters[i] = (double **) malloc(numberOfVectors *  sizeof(double *));
+        if (clusters[i] == NULL){
+            freeArray(memory, memoryListIndex);
+            return NULL;
+        }
+        memory[memoryListIndex++] = clusters[i];
+    }
+
+    /*Resetting cluster sizes to 0*/
+    clusterSizes = (int *) calloc(K, sizeof(int));
+    if (clusterSizes == NULL){
+        freeArray(memory, memoryListIndex);
+        return NULL;
+    }
+
+    while (iter_num < MAX_ITER && max_epsilon > EPSILON){
+        /* Assigning vectors to clusters*/
+        for(i = 0; i < numberOfVectors; i++){
+            clusterIndex = ArgMin(vectors[i], centeroids, K, length);
+            clusters[clusterIndex][clusterSizes[clusterIndex]] = vectors[i];
+            clusterSizes[clusterIndex]++;
+        }
+        max_epsilon = UpdateCenteroids(centeroids, clusters, clusterSizes, length, K);
+        iter_num++;
+        /* Resetting clusters*/
+        for (j = 0; j < K; j++){
+            for (t = 0; t < clusterSizes[j]; t++){
+                clusters[j][t] = NULL;
+            }
+            clusterSizes[j] = 0;
+        }
+    }
+    freeArray(memory, memoryListIndex);
+    free(clusterSizes);
+    return centeroids;
+}
 
 /*
     Allocates a matrix of dimension numberOfRows X numberOfColumns.
@@ -566,7 +734,8 @@ double ** jacobi(double **vectors, size_t dim){
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
-        espilon = offA - offA_prime;
+        /*espilon = offA - offA_prime;*/
+        espilon = offA_prime - offA;
         /* Setting A = A' according to expressions */
         temp = matrix;
         matrix = matrixPrime;
