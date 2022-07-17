@@ -164,8 +164,9 @@ void freeArrayOfBlocks(double ***ptr, size_t len){
 */
 double **parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
     size_t i,j;
-    double ** matrix = createBlockMatrix(sizeof(double), numberOfVectors, length);
     double *vector;
+    double ** matrix = createBlockMatrix(sizeof(double), numberOfVectors, length);
+    if (matrix == NULL) return NULL;
 
     for (i = 0; i < numberOfVectors; i++){
         vector = matrix[i];
@@ -565,7 +566,7 @@ double ** jacobi(double **vectors, size_t dim){
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
-        espilon = fabs(offA - offA_prime);
+        espilon = offA - offA_prime;
         /* Setting A = A' according to expressions */
         temp = matrix;
         matrix = matrixPrime;
@@ -597,19 +598,19 @@ double ** jacobi(double **vectors, size_t dim){
     return result;
 }
 
+double minusSqrt(double value){
+    if (value == 0) return 0;
+    return pow(value, -0.5);
+}
+
+
+
 double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
     double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
     size_t memory_index = 0;
     double ***memory = (double ***) malloc(sizeof(double **) * 6);
     if (memory == NULL) return NULL;
 
-    diag = ddg(vectors, numberOfVectors, length);
-    memory[memory_index++] = diag;
-    if (diag == NULL){
-        freeArrayOfBlocks(memory, memory_index);
-        return NULL;
-    }
-    funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
     
     weighted = wam(vectors, numberOfVectors, length);
     memory[memory_index++] = weighted;
@@ -618,6 +619,14 @@ double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
         freeArrayOfBlocks(memory, memory_index);
         return NULL;
     }
+
+    diag = ddg(weighted, numberOfVectors, length);
+    memory[memory_index++] = diag;
+    if (diag == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
+    funcOnMatrix(diag, numberOfVectors, numberOfVectors, &minusSqrt);
     
     multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     memory[memory_index++] = multLeft;
@@ -702,6 +711,7 @@ int main(int argc, char* argv[]){
 
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
+    if (vectors == NULL) errorMsg(1);
 
     /* Closing file */
     fclose(input_file);
