@@ -706,6 +706,9 @@ double ** jacobi(double **vectors, size_t dim){
             }
         }
         
+        printMatrix(matrix, dim, dim);
+        printf("***\n");
+
         /* matrix[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
         calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);
         /* Calculating off(A) */
@@ -731,11 +734,13 @@ double ** jacobi(double **vectors, size_t dim){
         matrixPrime[maxIndexRow][maxIndexCol] = 0;
         matrixPrime[maxIndexCol][maxIndexRow] = 0;
 
+        printMatrix(matrixPrime, dim, dim);
+        printf("***\n");
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */
         /*espilon = offA - offA_prime;*/
-        espilon = offA_prime - offA;
+        espilon = offA - offA_prime;
         /* Setting A = A' according to expressions */
         temp = matrix;
         matrix = matrixPrime;
@@ -841,7 +846,7 @@ int main(int argc, char* argv[]){
     TODO: * Implement wam 
           * Implement ddg 
           * Implement lnorm
-            Implement jacboi
+          * Implement jacboi
     */
    char *input, *operation, c;
    double **vectors, **result;
