@@ -77,7 +77,6 @@ int convertToInt(char number[]){
 
 void errorMsg(int code){
     /* Free memory */
-    freeAllMemory();
     if (code == 0){
         printf("Invalid input");
     }
@@ -117,10 +116,11 @@ int checkTextFormat(char *fileName){
 */
 double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
     size_t i;
-    double *block = (double *) malloc(size * numberOfRows * numberOfColumns);
-    if (block == NULL) errorMsg(1);
-    double **matrix = (double **) malloc(size * numberOfRows);
-    if (matrix == NULL) errorMsg(1);
+    double *block, **matrix;
+    block = (double *) malloc(size * numberOfRows * numberOfColumns);
+    if (block == NULL) return NULL;
+    matrix = (double **) malloc(size * numberOfRows);
+    if (matrix == NULL) return NULL;
     for (i = 0; i < numberOfRows; i++){
         matrix[i] = block + i * numberOfColumns;
     }
@@ -137,6 +137,22 @@ void freeBlock(double **ptr){
     free(*ptr);
     free(ptr);
 }
+
+/*  
+    Frees an of array of memory blocks
+    Paramters:
+        ptr - an array of pointers to memory allocated as a blocks.
+    Return:
+*/
+void freeArrayOfBlocks(double ***ptr, size_t len){
+    size_t i;
+    for (i = 0; i < len; i++){
+        freeBlock(ptr[i]);
+    }
+    free(ptr);
+}
+
+
 
 /*
     Paramters:
@@ -178,6 +194,7 @@ double **wam(double **matrix, size_t numberOfVectors, size_t length){
     size_t i,j;
     double wij;
     double **weightedMatrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    if (weightedMatrix == NULL) return NULL;
     for (i = 0; i < numberOfVectors; i++){
         weightedMatrix[i][i] = 0;
         for (j = i + 1; j < numberOfVectors; j++){
@@ -220,6 +237,7 @@ double sumOfRow(double **matrix, size_t length, size_t row){
 double ** ddg(double **matrix, size_t numberOfVectors, size_t length){
     size_t i, j;
     double **diag_matrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    if (diag_matrix == NULL) return NULL;
     for (i = 0; i < numberOfVectors; i++){
         for (j = 0; j < numberOfVectors; j++){
             if (j != i) diag_matrix[i][j] = 0;
@@ -258,6 +276,7 @@ void funcOnMatrix(double **dst_matrix , size_t numberOfRows, size_t numberOfColu
 double **eye(size_t size){
     size_t i,j;
     double **matrix = (double**) createBlockMatrix(sizeof(double), size, size);
+    if (matrix == NULL) return NULL;
     for (i = 0 ; i < size; i++){
         for (j = 0; j < size; j++){
             if (i != j) matrix[i][j] = 0;
@@ -467,14 +486,36 @@ double ** jacobi(double **vectors, size_t dim){
     double maxValue;
     size_t maxIndexRow = 0, maxIndexCol = 1;
     double currentValue, c, s;
-    double **matrix = createBlockMatrix(sizeof(double), dim, dim);
-    double **matrixPrime = createBlockMatrix(sizeof(double), dim, dim);
-    double **finalEigenvectors = createBlockMatrix(sizeof(double), dim,  dim);
-    double **rotationMatrix = createBlockMatrix(sizeof(double), dim, dim);
-    double **tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
+    double **matrix, **matrixPrime, **finalEigenvectors, **rotationMatrix, **tempEigenvectors;
     double **result;
     double offA, offA_prime, **temp;
 
+    /* Memory allocation part */
+    double ***memory = malloc(sizeof(double **) * 5);
+    size_t memory_index = 0;
+    if (memory == NULL) return NULL;
+
+    matrix = createBlockMatrix(sizeof(double), dim, dim);
+    memory[memory_index++] = matrix;
+
+    matrixPrime = createBlockMatrix(sizeof(double), dim, dim);
+    memory[memory_index++] = matrixPrime;
+
+    finalEigenvectors = createBlockMatrix(sizeof(double), dim,  dim);
+    memory[memory_index++] = finalEigenvectors;
+
+    rotationMatrix = createBlockMatrix(sizeof(double), dim, dim);
+    memory[memory_index++] = rotationMatrix;
+
+    tempEigenvectors = createBlockMatrix(sizeof(double), dim, dim);
+    memory[memory_index++] = tempEigenvectors;
+
+    if (matrix == NULL || matrixPrime == NULL || finalEigenvectors == NULL || rotationMatrix == NULL || tempEigenvectors == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
+
+    /* Algorithm part */
     /* Copying vectors to new matrix. Easier to maintain memory this way.*/
     copyMatrix(matrix, vectors, dim, dim);
     maxValue = fabs(matrix[0][1]);
@@ -540,37 +581,75 @@ double ** jacobi(double **vectors, size_t dim){
         }
         iterNum++;
     }
+    /* Copying results to new array */
     result = createBlockMatrix(sizeof(double), dim + 1, dim + 1);
+    if (result == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
+
     for (i = 0; i < dim; i++){
         result[0][i] = matrix[i][i];
     }
     copyMatrix((result + 1), finalEigenvectors, dim, dim);
-    freeBlock(matrixPrime);
-    freeBlock(finalEigenvectors);
-    freeBlock(rotationMatrix);
-    freeBlock(tempEigenvectors);
-    freeBlock(matrix);
+
+    freeArrayOfBlocks(memory, memory_index);
     return result;
 }
 
 double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
     double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
+    size_t memory_index = 0;
+    double ***memory = (double ***) malloc(sizeof(double **) * 6);
+    if (memory == NULL) return NULL;
+
     diag = ddg(vectors, numberOfVectors, length);
+    memory[memory_index++] = diag;
+    if (diag == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
     funcOnMatrix(diag, numberOfVectors, numberOfVectors, &sqrt);
+    
     weighted = wam(vectors, numberOfVectors, length);
+    memory[memory_index++] = weighted;
+
+    if (weighted == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
+    
     multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    memory[memory_index++] = multLeft;
+    if (multLeft == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
     dot(multLeft, diag, numberOfVectors, numberOfVectors, weighted, numberOfVectors, numberOfVectors);
+
     multRight = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    memory[memory_index++] = multRight;
+    if (multRight == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
     dot(multRight, multLeft, numberOfVectors, numberOfVectors, diag, numberOfVectors, numberOfVectors);
+
     eyeMatrix = eye(numberOfVectors);
+    memory[memory_index++] = eyeMatrix;
+    if (eyeMatrix == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
+
     lnorm = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    if (lnorm == NULL){
+        freeArrayOfBlocks(memory, memory_index);
+        return NULL;
+    }
     sub(lnorm, eyeMatrix, multRight, numberOfVectors, numberOfVectors);
-    printMatrix(lnorm, numberOfVectors, numberOfVectors);
-    freeBlock(diag);
-    freeBlock(weighted);
-    freeBlock(multLeft);
-    freeBlock(multRight);
-    freeBlock(eyeMatrix);
+
+    freeArrayOfBlocks(memory, memory_index);
     return lnorm;
 }
 
@@ -630,25 +709,35 @@ int main(int argc, char* argv[]){
     /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
         result = jacobi(vectors, numberOfVectors);
+        if (result == NULL){
+            freeBlock(vectors);
+            errorMsg(1);
+        }
         printMatrix(result, numberOfVectors + 1, numberOfVectors);
+        freeBlock(vectors);
+        freeBlock(result);
+        return 0;
     }
 
     /* Wam */
     if (!strcmp(operation, "wam")){
         result = wam(vectors, numberOfVectors, length);
-        printMatrix(result, numberOfVectors, numberOfVectors);
     }
     /* Ddg */
     else if (!strcmp(operation, "ddg")){
         result = ddg(vectors, numberOfVectors, length);
-        printMatrix(result, numberOfVectors, numberOfVectors);
     }
 
     /* Lnorm */
     else if (!strcmp(operation, "lnorm")){
         result = lnorm(vectors, numberOfVectors, length);
-        printMatrix(result, numberOfVectors, numberOfVectors);
     }
+
+    if (result == NULL){
+            freeBlock(vectors);
+            errorMsg(1);
+    }
+    printMatrix(result, numberOfVectors, numberOfVectors);
     freeBlock(result);
     freeBlock(vectors);
     return 0;
