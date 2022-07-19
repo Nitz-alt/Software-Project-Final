@@ -30,6 +30,7 @@ PyObject* _lnorm(PyObject *self, PyObject *args){
 PyObject* _jacobi(PyObject *self, PyObject *args){
     return NULL;
 }
+
 static PyMethodDef spkmeansMethods[] = {
     {"kmeans", (PyCFunction)_kmeans, METH_VARARGS, PyDoc_STR("Calculates centroids for K-Means classification.\nParameters: centroids list\nVectors list\nLength of vectors\nNumber of vectors\nK\nEpsilon\nMax iterations\nReturn: Clusters array\n")},
     {"wam", (PyCFunction) _wam, METH_VARARGS, PyDoc_STR("Calculates the Weighted Adjacency Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Weighted Adjacency Matrix\n")},
@@ -39,7 +40,7 @@ static PyMethodDef spkmeansMethods[] = {
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
-static struct PyModuleDef kmeansspModule = {
+static struct PyModuleDef spkmeansModule = {
     PyModuleDef_HEAD_INIT,
     "spkmeans",
     NULL,
@@ -50,7 +51,7 @@ static struct PyModuleDef kmeansspModule = {
 
 PyMODINIT_FUNC PyInit_spkmeans(void){
     PyObject *m;
-    m = PyModule_Create(&kmeansspModule);
+    m = PyModule_Create(&spkmeansModule);
     if(!m){
         return NULL;
     }
