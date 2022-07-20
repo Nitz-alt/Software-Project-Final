@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "spkmeans.h"
+#include <string.h>
 
 
 /**
@@ -34,12 +35,13 @@ static PyObject* createPythonList(double ** vectors, int length, int numberOfVec
  * @param length Lenght of the vectors
  * @return double** 
  */
-double **convertPythonListToArray(PyObject *list, Py_ssize_t numberOfVectors, Py_ssize_t length){
+double **convertPythonListToArray(PyObject *list, int numberOfVectors, int length){
     PyObject *subList, *item;
-    double value;
-    size_t i,j;
+    int i,j;
     double **vectors = createBlockMatrix(sizeof(double), numberOfVectors, length);
-    if (vectors == NULL) return NULL;
+    if (vectors == NULL){
+        return NULL;
+    }
     for (i = 0; i < numberOfVectors; i++){
         /* Getting row of matrix */
         subList = PyList_GetItem(list, i);
@@ -73,6 +75,31 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
 }
 
 /**
+ * @brief Checks input validity 
+ * 
+ * @param operation goal code
+ * @param list Matrix or data points
+ * @param numberOfVectors number of rows in the matrix
+ * @param lengthOfVectors length of a row in the matrix
+ * @return int 0 if not valid
+ */
+int inputVadility(const char *operation, PyObject *list, int numberOfVectors, int lengthOfVectors){
+    if (!strcmp(operation, "wam") || !strcmp(operation, "ddg") || !strcmp(operation, "lnorm")){
+        if (!PyList_Check(list)){
+            return 0;
+        }
+        if (numberOfVectors <= 0 || lengthOfVectors <= 0){
+            return 0;
+        }
+        return 1;
+    }
+    if (!strcmp(operation, "jacobi")){
+        return 1;
+    }
+    return 1;
+}
+
+/**
  * @brief Weighted Adjacency Matrix calculation 
  * 
  * @param self module
@@ -82,16 +109,13 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
 PyObject* _wam(PyObject *self, PyObject *args){
     PyObject *list, *PyResult;
     double **matrix, **result;
-    size_t numberOfVectors, length;
-    if (!PyArg_ParseTuple(args, "oii", &list, &numberOfVectors, &length)){
+    int numberOfVectors, length;
+    if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &length)){
+        PyErr_PrintEx(0);
         errorMsg(1);
         return NULL;
     }
-    if (!PyList_Check(list)){
-        errorMsg(1);
-        return NULL;
-    }
-    if (numberOfVectors <= 0 || length <= 0){
+    if (!inputVadility("wam", list, numberOfVectors, numberOfVectors)){
         errorMsg(1);
         return NULL;
     }
