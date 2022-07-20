@@ -4,3 +4,5 @@ trash.exe
 try.py
 a.txt
 spkmeans.exe
+/build
+*.pyd

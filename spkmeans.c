@@ -40,8 +40,8 @@ void copyToArray(double dst[], double origin[], int size){
     Return:
         void
 */
-void printAr(double *ar, size_t size){
-    size_t i = 0;
+void printAr(double *ar, int size){
+    int i = 0;
     char suffix = ',';
     for(;i < size; i++){
         if (i == size-1){
@@ -59,8 +59,8 @@ void printAr(double *ar, size_t size){
         numberOfColumns - number of columns
     Return:
 */
-void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
-    size_t i;
+void printMatrix(double **array, int numberOfRows, int numberOfColumns){
+    int i;
     for (i=0; i < numberOfRows; i++){
         printAr(array[i], numberOfColumns);
     }
@@ -74,7 +74,7 @@ void printMatrix(double **array, size_t numberOfRows, size_t numberOfColumns){
 */
 int convertToInt(char number[]){
     char c;
-    size_t i=0;
+    int i=0;
     while ((c = number[i++]) != '\0'){
         if (c < '0' || c > '9' || c == '.'){
             return 0;
@@ -189,8 +189,8 @@ double UpdateCenteroids(double **centeroids, double ** clusters[], int clusterSi
         ptr - an array of pointers to memory.
     Return:
 */
-void freeArray(double ***array, size_t len){
-    size_t i;
+void freeArray(double ***array, int len){
+    int i;
     for (i = 0; i < len; i++){
         free(array[i]);
     }
@@ -282,13 +282,13 @@ double **kmeans(double ** centeroids, double ** vectors, int const length, int c
         returns the pointer to the memory that was allocated
         
 */
-double **createBlockMatrix(size_t size, size_t numberOfRows, size_t numberOfColumns){
-    size_t i;
+double **createBlockMatrix(size_t size, int numberOfRows, int numberOfColumns){
+    int i;
     double *block, **matrix;
     block = (double *) malloc(size * numberOfRows * numberOfColumns);
-    if (block == NULL) return NULL;
+    if (block == NULL) {printf("error at malloc 2\n");return NULL;}
     matrix = (double **) malloc(size * numberOfRows);
-    if (matrix == NULL) return NULL;
+    if (matrix == NULL) {printf("error at malloc 2\n");return NULL;}
     for (i = 0; i < numberOfRows; i++){
         matrix[i] = block + i * numberOfColumns;
     }
@@ -312,8 +312,8 @@ void freeBlock(double **ptr){
         ptr - an array of pointers to memory allocated as a blocks.
     Return:
 */
-void freeArrayOfBlocks(double ***ptr, size_t len){
-    size_t i;
+void freeArrayOfBlocks(double ***ptr, int len){
+    int i;
     for (i = 0; i < len; i++){
         freeBlock(ptr[i]);
     }
@@ -330,8 +330,8 @@ void freeArrayOfBlocks(double ***ptr, size_t len){
     Return:
         A matrix of the vectors parsed from the file
 */
-double **parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
-    size_t i,j;
+double **parseMatrix(FILE *input, int numberOfVectors, int length){
+    int i,j;
     double *vector;
     double ** matrix = createBlockMatrix(sizeof(double), numberOfVectors, length);
     if (matrix == NULL) return NULL;
@@ -359,8 +359,8 @@ double **parseMatrix(FILE *input, size_t numberOfVectors, size_t length){
     Return:
         Weighted Adjacency Matrix
 */
-double **wam(double **matrix, size_t numberOfVectors, size_t length){
-    size_t i,j;
+double **wam(double **matrix, int numberOfVectors, int length){
+    int i,j;
     double wij;
     double **weightedMatrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     if (weightedMatrix == NULL) return NULL;
@@ -384,8 +384,8 @@ double **wam(double **matrix, size_t numberOfVectors, size_t length){
         Sum of row in matrix
         
 */
-double sumOfRow(double **matrix, size_t length, size_t row){
-    size_t i;
+double sumOfRow(double **matrix, int length, int row){
+    int i;
     double sum = 0;
     for (i = 0; i < length; i++){
         sum += matrix[row][i];
@@ -403,8 +403,8 @@ double sumOfRow(double **matrix, size_t length, size_t row){
         Diagonal Degree Matrix of matrix
         
 */
-double ** ddg(double **matrix, size_t numberOfVectors, size_t length){
-    size_t i, j;
+double ** ddg(double **matrix, int numberOfVectors, int length){
+    int i, j;
     double **diag_matrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     if (diag_matrix == NULL) return NULL;
     for (i = 0; i < numberOfVectors; i++){
@@ -427,8 +427,8 @@ double ** ddg(double **matrix, size_t numberOfVectors, size_t length){
     Return:
         void => the function applys in place
 */
-void funcOnMatrix(double **dst_matrix , size_t numberOfRows, size_t numberOfColumns, double (*f)(double)){
-    size_t i,j;
+void funcOnMatrix(double **dst_matrix , int numberOfRows, int numberOfColumns, double (*f)(double)){
+    int i,j;
     for (i = 0 ; i < numberOfRows; i++){
         for (j = 0; j < numberOfColumns; j++){
             dst_matrix[i][j] = (*f)(dst_matrix[i][j]);
@@ -442,8 +442,8 @@ void funcOnMatrix(double **dst_matrix , size_t numberOfRows, size_t numberOfColu
         size - dimension of matrix
     Return:
 */
-double **eye(size_t size){
-    size_t i,j;
+double **eye(int size){
+    int i,j;
     double **matrix = (double**) createBlockMatrix(sizeof(double), size, size);
     if (matrix == NULL) return NULL;
     for (i = 0 ; i < size; i++){
@@ -469,8 +469,8 @@ double **eye(size_t size){
         colsB - number of columns in matrix B
     Return:
 */
-void dot(double **dst, double **A, size_t rowsA, size_t colsA, double **B, size_t rowsB, size_t colsB){
-    size_t i,j, k, iterNum, lowBound, left;
+void dot(double **dst, double **A, int rowsA, int colsA, double **B, int rowsB, int colsB){
+    int i,j, k, iterNum, lowBound, left;
     double totalSum, sum1, sum2, sum3, sum4;
     rowsB = rowsB;
     for (i = 0; i < rowsA; i++){
@@ -480,7 +480,7 @@ void dot(double **dst, double **A, size_t rowsA, size_t colsA, double **B, size_
             sum2 = 0;
             sum3 = 0;
             sum4 = 0;
-            iterNum = (size_t) colsA / 4;
+            iterNum = colsA / 4;
             for (k = 0; k < iterNum; k++){
                 sum1 += A[i][k] * B[k][j];
                 sum2 += A[i][k+1] * B[k+1][j];
@@ -511,8 +511,8 @@ void dot(double **dst, double **A, size_t rowsA, size_t colsA, double **B, size_
         colsB - number of columns in matrix B
     Return:
 */
-void sub(double **dst, double **A, double **B, size_t rows, size_t columns){
-    size_t i,j;
+void sub(double **dst, double **A, double **B, int rows, int columns){
+    int i,j;
     for (i = 0; i < rows; i++){
         for (j = 0; j < columns; j++){
             dst[i][j] = A[i][j] - B[i][j];
@@ -528,8 +528,8 @@ void sub(double **dst, double **A, double **B, size_t rows, size_t columns){
         cols - number of columns in matrix A
     Return:
 */
-void transpose(double **A, size_t rows, size_t cols){
-    size_t i,j;
+void transpose(double **A, int rows, int cols){
+    int i,j;
     double temp;
     for (i = 0; i < rows; i++){
         for (j = i+1; j < cols; j++){
@@ -563,8 +563,8 @@ int sign(double value){
         cols - number of columns
     Return:
 */
-void copyMatrix(double **destination, double **origin, size_t rows, size_t cols){
-    size_t i, j;
+void copyMatrix(double **destination, double **origin, int rows, int cols){
+    int i, j;
     for (i = 0; i < rows; i++){
         for (j = 0; j < cols; j++){
             destination[i][j] = origin[i][j];
@@ -601,8 +601,9 @@ void calcCS(double **matrix, int i, int j, double *c, double *s){
         s - value of s as in example
     Return:
 */
-void InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t col, double c, double s){
-    size_t i, j, value;
+void InitRotationMatrix(double **rotationMatrix, int size, int row, int col, double c, double s){
+    int i, j;
+    double value;
     for (i = 0; i < size; i++){
         for (j = 0; j < size; j++){
             if (i != j){
@@ -628,8 +629,8 @@ void InitRotationMatrix(double **rotationMatrix, size_t size, size_t row, size_t
     Return:
         off(matrix)
 */
-double off(double **matrix, size_t dim){
-    size_t i,j;
+double off(double **matrix, int dim){
+    int i,j;
     double sum;
     for (i = 0; i < dim; i++){
         for (j = i + 1; j < dim; j++){
@@ -649,11 +650,11 @@ double off(double **matrix, size_t dim){
     Return:
         A matrix of dimensions (dim + 1 X dim).  The first row is the eigenvalues and the other rows are the eigenvectors.
 */
-double ** jacobi(double **vectors, size_t dim){
+double ** jacobi(double **vectors, int dim){
     double espilon = 1, convergence;
-    size_t iterNum = 1, i, j, r;
+    int iterNum = 1, i, j, r;
     double maxValue;
-    size_t maxIndexRow = 0, maxIndexCol = 1;
+    int maxIndexRow = 0, maxIndexCol = 1;
     double currentValue, c, s;
     double **matrix, **matrixPrime, **finalEigenvectors, **rotationMatrix, **tempEigenvectors;
     double **result;
@@ -661,7 +662,7 @@ double ** jacobi(double **vectors, size_t dim){
 
     /* Memory allocation part */
     double ***memory = malloc(sizeof(double **) * 5);
-    size_t memory_index = 0;
+    int memory_index = 0;
     if (memory == NULL) return NULL;
 
     matrix = createBlockMatrix(sizeof(double), dim, dim);
@@ -779,9 +780,9 @@ double minusSqrt(double value){
 
 
 
-double **lnorm(double ** vectors, size_t numberOfVectors, size_t length){
+double **lnorm(double ** vectors, int numberOfVectors, int length){
     double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
-    size_t memory_index = 0;
+    int memory_index = 0;
     double ***memory = (double ***) malloc(sizeof(double **) * 6);
     if (memory == NULL) return NULL;
 
@@ -850,7 +851,7 @@ int main(int argc, char* argv[]){
     */
    char *input, *operation, c;
    double **vectors, **result;
-   size_t length = 1, numberOfVectors=0;
+   int length = 1, numberOfVectors=0;
    FILE *input_file;
    
     if (argc != 3) return 1;
