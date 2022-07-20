@@ -34,7 +34,7 @@ static PyObject* createPythonList(double ** vectors, int length, int numberOfVec
  * @param length Lenght of the vectors
  * @return double** 
  */
-double **convertPythonListToArray(PyObject **list, Py_ssize_t numberOfVectors, Py_ssize_t length){
+double **convertPythonListToArray(PyObject *list, Py_ssize_t numberOfVectors, Py_ssize_t length){
     PyObject *subList, *item;
     double value;
     size_t i,j;
@@ -80,10 +80,10 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
  * @return PyObject* 
  */
 PyObject* _wam(PyObject *self, PyObject *args){
-    PyObject **list, *PyResult;
+    PyObject *list, *PyResult;
     double **matrix, **result;
     size_t numberOfVectors, length;
-    if (!PyArg_ParseTuple("oii", &list, &numberOfVectors, &length)){
+    if (!PyArg_ParseTuple(args, "oii", &list, &numberOfVectors, &length)){
         errorMsg(1);
         return NULL;
     }
