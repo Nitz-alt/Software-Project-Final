@@ -631,7 +631,7 @@ void InitRotationMatrix(double **rotationMatrix, int size, int row, int col, dou
 */
 double off(double **matrix, int dim){
     int i,j;
-    double sum;
+    double sum = 0;
     for (i = 0; i < dim; i++){
         for (j = i + 1; j < dim; j++){
             sum += pow(matrix[i][j], 2);
@@ -706,9 +706,6 @@ double ** jacobi(double **vectors, int dim){
                 }
             }
         }
-        
-        printMatrix(matrix, dim, dim);
-        printf("***\n");
 
         /* matrix[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
         calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);
@@ -735,8 +732,6 @@ double ** jacobi(double **vectors, int dim){
         matrixPrime[maxIndexRow][maxIndexCol] = 0;
         matrixPrime[maxIndexCol][maxIndexRow] = 0;
 
-        printMatrix(matrixPrime, dim, dim);
-        printf("***\n");
         /* Calculating off(A') */
         offA_prime = off(matrixPrime, dim);
         /* Calculating epsilon */

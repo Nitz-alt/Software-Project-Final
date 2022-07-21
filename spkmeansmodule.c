@@ -85,19 +85,41 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
  */
 int inputVadility(const char *operation, PyObject *list, int numberOfVectors, int lengthOfVectors){
     if (!strcmp(operation, "wam") || !strcmp(operation, "ddg") || !strcmp(operation, "lnorm")){
-        if (!PyList_Check(list)){
-            return 0;
-        }
-        if (numberOfVectors <= 0 || lengthOfVectors <= 0){
-            return 0;
-        }
-        return 1;
-    }
-    if (!strcmp(operation, "jacobi")){
-        return 1;
+        
     }
     return 1;
 }
+
+PyObject *dataPointsOperation(PyObject *args, double ** (*goal)(double **, int, int)){
+    PyObject *list, *PyResult;
+    double **matrix, **result;
+    int numberOfVectors, lengthOfVectors;
+    if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &lengthOfVectors)){
+        PyErr_PrintEx(0);
+        errorMsg(1);
+        return NULL;
+    }
+    if (!PyList_Check(list)){
+            errorMsg(1);
+            return NULL;
+    }
+    if (numberOfVectors <= 0 || lengthOfVectors <= 0){
+        errorMsg(1);
+        return NULL;
+    }
+    matrix = convertPythonListToArray(list, numberOfVectors, lengthOfVectors);
+    if (!matrix){
+        errorMsg(1);
+        return NULL;
+    }
+    result = (*goal)(matrix, numberOfVectors, lengthOfVectors);
+    PyResult = createPythonList(result, lengthOfVectors, numberOfVectors);
+    freeBlock(matrix);
+    freeBlock(result);
+    return PyResult;
+}
+
+
 
 /**
  * @brief Weighted Adjacency Matrix calculation 
@@ -107,37 +129,40 @@ int inputVadility(const char *operation, PyObject *list, int numberOfVectors, in
  * @return PyObject* 
  */
 PyObject* _wam(PyObject *self, PyObject *args){
+    return dataPointsOperation(args, &wam);
+}
+PyObject* _ddg(PyObject *self, PyObject *args){
+    return dataPointsOperation(args, &ddg);
+}
+PyObject* _lnorm(PyObject *self, PyObject *args){
+    return dataPointsOperation(args, &lnorm);
+}
+PyObject* _jacobi(PyObject *self, PyObject *args){
     PyObject *list, *PyResult;
     double **matrix, **result;
-    int numberOfVectors, length;
-    if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &length)){
-        PyErr_PrintEx(0);
+    int dim;
+    if (!PyArg_ParseTuple(args, "Oi", &list, &dim)){
         errorMsg(1);
         return NULL;
     }
-    if (!inputVadility("wam", list, numberOfVectors, numberOfVectors)){
+    if (!PyList_Check(list)){
         errorMsg(1);
         return NULL;
     }
-    matrix = convertPythonListToArray(list, numberOfVectors, length);
+    if (dim <= 0){
+        errorMsg(1);
+        return NULL;
+    }
+    matrix = convertPythonListToArray(list, dim, dim);
     if (!matrix){
         errorMsg(1);
         return NULL;
     }
-    result = wam(matrix, numberOfVectors, length);
-    PyResult = createPythonList(result, length, numberOfVectors);
+    result = jacobi(matrix, dim);
+    PyResult = createPythonList(result, dim, dim + 1);
     freeBlock(matrix);
     freeBlock(result);
     return PyResult;
-}
-PyObject* _ddg(PyObject *self, PyObject *args){
-    return NULL;
-}
-PyObject* _lnorm(PyObject *self, PyObject *args){
-    return NULL;
-}
-PyObject* _jacobi(PyObject *self, PyObject *args){
-    return NULL;
 }
 
 static PyMethodDef spkmeansMethods[] = {
