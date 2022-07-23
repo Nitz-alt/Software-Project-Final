@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages, Extension
 
 
-spkmeans = Extension('spkmeans', sources=['spkmeansmodule.c', 'spkmeans.c'], include_dirs=['include'])
+spkmeans = Extension('spkmeans', sources=['spkmeansmodule.c', 'spkmeans.c'])
 
 setup(name = "spkmeans",
     version="1.0",
