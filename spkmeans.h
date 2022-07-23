@@ -5,7 +5,7 @@ double **wam(double **matrix, int numberOfVectors, int length);
 double ** ddg(double **matrix, int numberOfVectors, int length);
 double **lnorm(double ** vectors, int numberOfVectors, int length);
 double ** jacobi(double **vectors, int dim);
-double **createBlockMatrix(int size, int numberOfRows, int numberOfColumns);
+double **createBlockMatrix(size_t size, int numberOfRows, int numberOfColumns);
 void freeBlock(double **ptr);
 void errorMsg(int code);
 void printMatrix(double **array, int numberOfRows, int numberOfColumns);
