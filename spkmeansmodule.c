@@ -75,21 +75,12 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
 }
 
 /**
- * @brief Checks input validity 
+ * @brief Excecution routine for WAM, DDG and LNORM
  * 
- * @param operation goal code
- * @param list Matrix or data points
- * @param numberOfVectors number of rows in the matrix
- * @param lengthOfVectors length of a row in the matrix
- * @return int 0 if not valid
+ * @param args 
+ * @param goal goal function from C library
+ * @return PyObject* appropriate matrix according to goal.
  */
-int inputVadility(const char *operation, PyObject *list, int numberOfVectors, int lengthOfVectors){
-    if (!strcmp(operation, "wam") || !strcmp(operation, "ddg") || !strcmp(operation, "lnorm")){
-        
-    }
-    return 1;
-}
-
 PyObject *dataPointsOperation(PyObject *args, double ** (*goal)(double **, int, int)){
     PyObject *list, *PyResult;
     double **matrix, **result;
@@ -131,12 +122,35 @@ PyObject *dataPointsOperation(PyObject *args, double ** (*goal)(double **, int, 
 PyObject* _wam(PyObject *self, PyObject *args){
     return dataPointsOperation(args, &wam);
 }
+/**
+ * @brief DDG matrix calculation 
+ * 
+ * @param self module
+ * @param args arguments from python
+ * @return PyObject* 
+ */
 PyObject* _ddg(PyObject *self, PyObject *args){
     return dataPointsOperation(args, &ddg);
 }
+/**
+ * @brief lnorm matrix calculation 
+ * 
+ * @param self module
+ * @param args arguments from python
+ * @return PyObject* 
+ */
 PyObject* _lnorm(PyObject *self, PyObject *args){
     return dataPointsOperation(args, &lnorm);
 }
+
+
+/**
+ * @brief Jacobi algorithm
+ * 
+ * @param self 
+ * @param args 
+ * @return PyObject* 
+ */
 PyObject* _jacobi(PyObject *self, PyObject *args){
     PyObject *list, *PyResult;
     double **matrix, **result;
