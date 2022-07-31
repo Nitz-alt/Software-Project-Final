@@ -540,6 +540,8 @@ void transpose(double **A, int rows, int cols){
     }
 }
 
+
+
 /*
     Returns the sign of a value.
     Paramters:
@@ -832,7 +834,58 @@ double **lnorm(double ** vectors, int numberOfVectors, int length){
     return lnorm;
 }
 
+/**
+ * @brief Inplace transposition of a non squared matrix
+ * 
+ * @param matrix matrix to transpose
+ * @param rows number of rows in matrix
+ * @param cols number of columns in matrix
+ */
+void transposeNonSquareMatrix(double **matrix, int rows, int cols){
+    int i, j;
+    double **tempMatrix = createBlockMatrix(sizeof(double), cols, rows);
+    /* Creating the transposed matrix (as the matrix is not square) */
+    for (i = 0; i < cols; i++){
+        for (j = 0; j < rows; j++){
+            tempMatrix[i][j] = matrix[j][i];
+        }
+    }
+    /* Reordering rows in original matrix */
+    for (i = 0 ; i < cols; i++){
+        matrix[i] = (*matrix) + i * rows;
+    }
+    /* Copying values to original array after its dimensions are changed */
+    copyMatrix(matrix, tempMatrix, cols, rows);
+    /* Freeing memory */
+    freeBlock(tempMatrix);
+}
 
+
+
+
+int myCompare(const void *x, const void *y){
+    double **xAr = (double **) x;
+    double **yAr = (double **) y;
+    double xValue = **xAr;
+    double yValue = **yAr;
+    if (xValue == yValue) return 0;
+    return xValue > yValue ? -1 : 1;
+
+}
+
+double **spk(double **vectors, int numberOfVectors, int length, int K, double **centeroids){
+    double **lnormMatrix, **transposeMatrix;
+    if (centeroids == NULL){}
+    lnormMatrix = lnorm(vectors, numberOfVectors, length);
+    
+    if (K == 0){
+        transposeMatrix = jacobi(lnormMatrix, numberOfVectors);
+        transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+        qsort(transposeMatrix, numberOfVectors, sizeof(double *), &myCompare);
+        transposeNonSquareMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
+        printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+    }
+}
 
 
 int main(int argc, char* argv[]){
@@ -885,7 +938,7 @@ int main(int argc, char* argv[]){
 
     /* Closing file */
     fclose(input_file);
-
+    spk(vectors, numberOfVectors, length, 0, NULL);
     /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
         result = jacobi(vectors, numberOfVectors);
