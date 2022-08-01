@@ -839,13 +839,13 @@ double **lnorm(double ** vectors, int numberOfVectors, int length){
  * @param matrix matrix to transpose
  * @param rows number of rows in matrix
  * @param cols number of columns in matrix
- * @return return 1 on success and 0 on failure
+ * @return Returns a new matrix = transpose(matrix)
  */
-int transposeNonSquareMatrix(double **matrix, int rows, int cols){
+double** transposeNonSquareMatrix(double **matrix, int rows, int cols){
     int i, j;
     double **tempMatrix = createBlockMatrix(sizeof(double), cols, rows);
     if (tempMatrix == NULL){
-        return 0;
+        return NULL;
     }
     /* Creating the transposed matrix (as the matrix is not square) */
     for (i = 0; i < cols; i++){
@@ -853,15 +853,7 @@ int transposeNonSquareMatrix(double **matrix, int rows, int cols){
             tempMatrix[i][j] = matrix[j][i];
         }
     }
-    /* Reordering rows in original matrix */
-    for (i = 0 ; i < cols; i++){
-        matrix[i] = (*matrix) + i * rows;
-    }
-    /* Copying values to original array after its dimensions are changed */
-    copyMatrix(matrix, tempMatrix, cols, rows);
-    /* Freeing memory */
-    freeBlock(tempMatrix);
-    return 1;
+    return tempMatrix;
 }
 
 
@@ -878,7 +870,7 @@ int myCompare(const void *x, const void *y){
 }
 
 double **normalSpectralClustering(double **vectors, int numberOfVectors, int length){
-    double **lnormMatrix, **transposeMatrix, **T;
+    double **lnormMatrix, **transposeMatrix, **T, **temp, *transposeBlock;
     int K=1, i, j;
     double argMax=0, arg, sum;
     /* Creating Lnorm matrix of X */
@@ -890,22 +882,31 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     transposeMatrix = jacobi(lnormMatrix, numberOfVectors);
     printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
     printf("----------------------------------------------\n");
-    freeBlock(lnormMatrix);
-    if (!transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors)){
+    temp = transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+    if (temp == NULL){
         freeBlock(transposeMatrix);
         return NULL;
     }
+    freeBlock(transposeMatrix);
+    transposeMatrix = temp;
     printMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
     printf("----------------------------------------------\n");
     /*  explanation about the sorting. MyCompare compares arrays by their first item (in decreasing)
         so qsort sorts the rows in the matrix by their first item.
         As the first item (after transposing the jacobi matrix) are the eigenvalues, qsort sorts the rows by decreasing
         corresponding eigenvalues */
-    qsort(transposeMatrix, numberOfVectors, sizeof(double *), &myCompare);
-    if (!transposeNonSquareMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1)){
+    transposeBlock = *transposeMatrix;
+    qsort(transposeMatrix, numberOfVectors, sizeof(double *), &myCompare); /*qsort changes first object so when im trying to free a block using *ptr the pointer of
+    the block is not correct. Solution ==> Save pointer of the block*/
+    temp = transposeNonSquareMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
+    if (temp == NULL){
         freeBlock(transposeMatrix);
-        return NULL;   
+        return NULL;
     }
+    free(transposeBlock);
+    free(transposeMatrix);
+    transposeMatrix = temp;
+    
     printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
     printf("----------------------------------------------\n");
     /* Finding K */
@@ -941,6 +942,7 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     freeBlock(transposeMatrix);
     printMatrix(T, numberOfVectors, K);
     printf("----------------------------------------------\n");
+    freeBlock(lnormMatrix);
     return T;
 }
 
@@ -978,7 +980,6 @@ int main(int argc, char* argv[]){
         }
         if (c == ',') length++;
     }
-    /* rewind(input_file); */
     if (fseek(input_file, 0, SEEK_SET)){
         errorMsg(1);
         return 1;
@@ -991,7 +992,6 @@ int main(int argc, char* argv[]){
         errorMsg(0);
         return 1;
     }
-    /* rewind(input_file); */
     if (fseek(input_file, 0, SEEK_SET)){
         errorMsg(1);
         return 1;
