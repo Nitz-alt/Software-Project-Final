@@ -773,7 +773,14 @@ double minusSqrt(double value){
 }
 
 
-
+/**
+ * @brief Calculates The Normalized Graph Laplacian
+ * 
+ * @param vectors data points
+ * @param numberOfVectors number of data points
+ * @param length length of data points
+ * @return double** The Normalized Graph Laplacian
+ */
 double **lnorm(double ** vectors, int numberOfVectors, int length){
     double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
     int memory_index = 0, i;
@@ -858,7 +865,13 @@ double** transposeNonSquareMatrix(double **matrix, int rows, int cols){
 
 
 
-
+/**
+ * @brief A comparator to sort arrays by their first item
+ * 
+ * @param x Array 1
+ * @param y Array 2
+ * @return int
+ */
 int myCompare(const void *x, const void *y){
     double **xAr = (double **) x;
     double **yAr = (double **) y;
@@ -869,19 +882,23 @@ int myCompare(const void *x, const void *y){
 
 }
 
-double **normalSpectralClustering(double **vectors, int numberOfVectors, int length){
+/**
+ * @brief Normal Spectral Clustering algorthim according to instructions
+ * 
+ * @param vectors Data points
+ * @param numberOfVectors number of data points
+ * @param length dimnesion of data point (length of the vectors)
+ * @return double** Points in R^K to cluster (each row is a vector)
+ */
+double **normalSpectralClustering(double **vectors, int numberOfVectors, int length, int *numberOfClusters){
     double **lnormMatrix, **transposeMatrix, **T, **temp, *transposeBlock;
     int K=1, i, j;
     double argMax=0, arg, sum;
     /* Creating Lnorm matrix of X */
     lnormMatrix = lnorm(vectors, numberOfVectors, length);
     if (lnormMatrix == NULL) return NULL;
-    printMatrix(lnormMatrix, numberOfVectors, numberOfVectors);
-    printf("----------------------------------------------\n");
     /* Getting eigenvalues and eigenvectors */
     transposeMatrix = jacobi(lnormMatrix, numberOfVectors);
-    printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
-    printf("----------------------------------------------\n");
     temp = transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
     if (temp == NULL){
         freeBlock(transposeMatrix);
@@ -889,8 +906,6 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     }
     freeBlock(transposeMatrix);
     transposeMatrix = temp;
-    printMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
-    printf("----------------------------------------------\n");
     /*  explanation about the sorting. MyCompare compares arrays by their first item (in decreasing)
         so qsort sorts the rows in the matrix by their first item.
         As the first item (after transposing the jacobi matrix) are the eigenvalues, qsort sorts the rows by decreasing
@@ -907,8 +922,6 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     free(transposeMatrix);
     transposeMatrix = temp;
     
-    printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
-    printf("----------------------------------------------\n");
     /* Finding K */
     for (i = 0 ; i < numberOfVectors/2; i++){
         arg = transposeMatrix[0][i] - transposeMatrix[0][i+1];
@@ -917,6 +930,7 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
             argMax = arg;
         }
     }
+    *numberOfClusters = K;
     T = createBlockMatrix(sizeof(double), numberOfVectors, K);
     if (T == NULL){
         freeBlock(transposeMatrix);
@@ -924,8 +938,6 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     }
     /* This copies only the first K columns without the first row in them (as the first row in transposeMatrix are the eigenvalues) */
     copyMatrix(T, transposeMatrix + 1, numberOfVectors, K);
-    printMatrix(T, numberOfVectors, K);
-    printf("----------------------------------------------\n");
     /* Normalizing values of T*/
     for (i = 0; i < numberOfVectors; i++){
         sum = 0;
@@ -940,8 +952,6 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
         }
     }
     freeBlock(transposeMatrix);
-    printMatrix(T, numberOfVectors, K);
-    printf("----------------------------------------------\n");
     freeBlock(lnormMatrix);
     return T;
 }
