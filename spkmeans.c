@@ -4,6 +4,8 @@
 #include <string.h>
 #include "spkmeans.h"
 
+
+#define CONVERGENCE 1E-5
 /*
     Paramters:
         x - Vector 1
@@ -653,7 +655,7 @@ double off(double **matrix, int dim){
         A matrix of dimensions (dim + 1 X dim).  The first row is the eigenvalues and the other rows are the eigenvectors.
 */
 double ** jacobi(double **vectors, int dim){
-    double espilon = 1, convergence;
+    double espilon = 1;
     int iterNum = 1, i, j, r;
     double maxValue;
     int maxIndexRow = 0, maxIndexCol = 1;
@@ -692,8 +694,7 @@ double ** jacobi(double **vectors, int dim){
     copyMatrix(matrix, vectors, dim, dim);
     maxValue = fabs(matrix[0][1]);
     /*char suffix;*/
-    convergence = pow(10, -5);
-    while (espilon > convergence && iterNum <= 100){
+    while (espilon > CONVERGENCE && iterNum <= 100){
         /*Finding the off-diagonal element with the largest absolute value. The matrix is symmetric */
         maxValue = fabs(matrix[0][1]);
         maxIndexRow = 0;
@@ -840,10 +841,14 @@ double **lnorm(double ** vectors, int numberOfVectors, int length){
  * @param matrix matrix to transpose
  * @param rows number of rows in matrix
  * @param cols number of columns in matrix
+ * @return return 1 on success and 0 on failure
  */
-void transposeNonSquareMatrix(double **matrix, int rows, int cols){
+int transposeNonSquareMatrix(double **matrix, int rows, int cols){
     int i, j;
     double **tempMatrix = createBlockMatrix(sizeof(double), cols, rows);
+    if (tempMatrix == NULL){
+        return 0;
+    }
     /* Creating the transposed matrix (as the matrix is not square) */
     for (i = 0; i < cols; i++){
         for (j = 0; j < rows; j++){
@@ -858,6 +863,7 @@ void transposeNonSquareMatrix(double **matrix, int rows, int cols){
     copyMatrix(matrix, tempMatrix, cols, rows);
     /* Freeing memory */
     freeBlock(tempMatrix);
+    return 1;
 }
 
 
@@ -873,18 +879,70 @@ int myCompare(const void *x, const void *y){
 
 }
 
-double **spk(double **vectors, int numberOfVectors, int length, int K, double **centeroids){
-    double **lnormMatrix, **transposeMatrix;
-    if (centeroids == NULL){}
+double **normalSpectralClustering(double **vectors, int numberOfVectors, int length){
+    double **lnormMatrix, **transposeMatrix, **T;
+    int K=1, i, j;
+    double argMax=0, arg, sum;
+    /* Creating Lnorm matrix of X */
     lnormMatrix = lnorm(vectors, numberOfVectors, length);
-    
-    if (K == 0){
-        transposeMatrix = jacobi(lnormMatrix, numberOfVectors);
-        transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
-        qsort(transposeMatrix, numberOfVectors, sizeof(double *), &myCompare);
-        transposeNonSquareMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
-        printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+    printMatrix(lnormMatrix, numberOfVectors, numberOfVectors);
+    printf("----------------------------------------------\n");
+    /* Getting eigenvalues and eigenvectors */
+    transposeMatrix = jacobi(lnormMatrix, numberOfVectors);
+    printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+    printf("----------------------------------------------\n");
+    freeBlock(lnormMatrix);
+    if (!transposeNonSquareMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors)){
+        freeBlock(transposeMatrix);
+        return NULL;
     }
+    printMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1);
+    printf("----------------------------------------------\n");
+    /*  explanation about the sorting. MyCompare compares arrays by their first item (in decreasing)
+        so qsort sorts the rows in the matrix by their first item.
+        As the first item (after transposing the jacobi matrix) are the eigenvalues, qsort sorts the rows by decreasing
+        corresponding eigenvalues */
+    qsort(transposeMatrix, numberOfVectors, sizeof(double *), &myCompare);
+    if (!transposeNonSquareMatrix(transposeMatrix, numberOfVectors, numberOfVectors + 1)){
+        freeBlock(transposeMatrix);
+        return NULL;   
+    }
+    printMatrix(transposeMatrix, numberOfVectors + 1, numberOfVectors);
+    printf("----------------------------------------------\n");
+    /* Finding K */
+    for (i = 0 ; i < numberOfVectors/2; i++){
+        arg = transposeMatrix[0][i] - transposeMatrix[0][i+1];
+        if (arg > argMax){
+            K = i+1;
+            argMax = arg;
+        }
+    }
+    T = createBlockMatrix(sizeof(double), numberOfVectors, K);
+    if (T == NULL){
+        freeBlock(transposeMatrix);
+        return NULL;
+    }
+    /* This copies only the first K columns without the first row in them (as the first row in transposeMatrix are the eigenvalues) */
+    copyMatrix(T, transposeMatrix + 1, numberOfVectors, K);
+    printMatrix(T, numberOfVectors, K);
+    printf("----------------------------------------------\n");
+    /* Normalizing values of T*/
+    for (i = 0; i < numberOfVectors; i++){
+        sum = 0;
+        for (j = 0; j < K; j++){
+            sum += pow(T[i][j], 2);
+        }
+        if (sum != 0){
+            sum = pow(sum, 0.5);
+            for (j = 0; j < K; j++){
+                T[i][j] = T[i][j] / sum;
+            }
+        }
+    }
+    freeBlock(transposeMatrix);
+    printMatrix(T, numberOfVectors, K);
+    printf("----------------------------------------------\n");
+    return T;
 }
 
 
@@ -921,7 +979,11 @@ int main(int argc, char* argv[]){
         }
         if (c == ',') length++;
     }
-    rewind(input_file);
+    /* rewind(input_file); */
+    if (fseek(input_file, 0, SEEK_SET)){
+        errorMsg(1);
+        return 1;
+    }
     while ((c = fgetc(input_file))){
         if (feof(input_file)) break;
         if (c == '\n') numberOfVectors++;
@@ -930,7 +992,11 @@ int main(int argc, char* argv[]){
         errorMsg(0);
         return 1;
     }
-    rewind(input_file);
+    /* rewind(input_file); */
+    if (fseek(input_file, 0, SEEK_SET)){
+        errorMsg(1);
+        return 1;
+    }
 
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
@@ -938,7 +1004,7 @@ int main(int argc, char* argv[]){
 
     /* Closing file */
     fclose(input_file);
-    spk(vectors, numberOfVectors, length, 0, NULL);
+    normalSpectralClustering(vectors, numberOfVectors, length);
     /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
         result = jacobi(vectors, numberOfVectors);
