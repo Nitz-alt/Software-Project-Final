@@ -104,7 +104,11 @@ PyObject *dataPointsOperation(PyObject *args, double ** (*goal)(double **, int, 
         return NULL;
     }
     result = (*goal)(matrix, numberOfVectors, lengthOfVectors);
-    PyResult = createPythonList(result, lengthOfVectors, numberOfVectors);
+    if (result == NULL){
+        errorMsg(1);
+        return NULL;
+    }
+    PyResult = createPythonList(result, numberOfVectors, numberOfVectors);
     freeBlock(matrix);
     freeBlock(result);
     return PyResult;

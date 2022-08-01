@@ -395,27 +395,8 @@ double sumOfRow(double **matrix, int length, int row){
     return sum;
 }
 
-
-/* 
-    Paramters:
-        matrix - matrix of vectors to calculate its diagonal degree matrix
-        numberOfVectors - number of vecotrs
-        length - length of each vector in the matrix
-    Return:
-        Diagonal Degree Matrix of matrix
-        
-*/
-double ** ddg(double **matrix, int numberOfVectors, int length){
-    int i, j;
-    double **diag_matrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
-    if (diag_matrix == NULL) return NULL;
-    for (i = 0; i < numberOfVectors; i++){
-        for (j = 0; j < numberOfVectors; j++){
-            if (j != i) diag_matrix[i][j] = 0;
-            else diag_matrix[i][i] = sumOfRow(matrix, length, i);
-        }
-    }
-    return diag_matrix;
+double ff(double v){
+    return pow(v, -0.5);
 }
 
 /*
@@ -437,6 +418,36 @@ void funcOnMatrix(double **dst_matrix , int numberOfRows, int numberOfColumns, d
         }
     }
 }
+
+/* 
+    Paramters:
+        matrix - matrix of vectors to calculate its diagonal degree matrix
+        numberOfVectors - number of vecotrs
+        length - length of each vector in the matrix
+    Return:
+        Diagonal Degree Matrix of matrix
+        
+*/
+double ** ddg(double **matrix, int numberOfVectors, int length){
+    int i, j;
+    double **wamMatrix;
+    double **diag_matrix = (double **) createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
+    if (diag_matrix == NULL) return NULL;
+    wamMatrix = wam(matrix, numberOfVectors, length);
+    if (wamMatrix == NULL){
+        freeBlock(diag_matrix);
+        return NULL;
+    }
+    
+    for (i = 0; i < numberOfVectors; i++){
+        for (j = 0; j < numberOfVectors; j++){
+            if (j != i) diag_matrix[i][j] = 0;
+            else diag_matrix[i][i] = sumOfRow(wamMatrix, numberOfVectors, i);
+        }
+    }
+    return diag_matrix;
+}
+
 
 /*
     Returns the eye matrix of (size X size) dimensions 
@@ -472,30 +483,16 @@ double **eye(int size){
     Return:
 */
 void dot(double **dst, double **A, int rowsA, int colsA, double **B, int rowsB, int colsB){
-    int i,j, k, iterNum, lowBound, left;
-    double totalSum, sum1, sum2, sum3, sum4;
-    rowsB = rowsB;
-    for (i = 0; i < rowsA; i++){
-        for (j = 0; j < colsB; j++){
-            totalSum = 0;
-            sum1 = 0;
-            sum2 = 0;
-            sum3 = 0;
-            sum4 = 0;
-            iterNum = colsA / 4;
-            for (k = 0; k < iterNum; k++){
-                sum1 += A[i][k] * B[k][j];
-                sum2 += A[i][k+1] * B[k+1][j];
-                sum3 += A[i][k+2] * B[k+2][j];
-                sum4 += A[i][k+3] * B[k+3][j];
+    int i, j, k;
+    double sum;
+    rowsB = rowsB + 1;
+    for ( i = 0 ; i < rowsA; i++){
+        for (j = 0 ; j < colsB; j++){
+            sum = 0;
+            for (k = 0 ; k < colsA; k++){
+                sum += A[i][k] * B[k][j];
             }
-            left = colsA % 4;
-            lowBound = colsA - left;
-            for (k = 0; k < left; k++){
-             totalSum += A[i][lowBound + k] * B[lowBound + k][j];   
-            }
-            totalSum += sum1 + sum2 + sum3 + sum4;
-            dst[i][j] = totalSum;
+            dst[i][j] = sum;
         }
     }
 }
@@ -756,7 +753,7 @@ double ** jacobi(double **vectors, int dim){
         iterNum++;
     }
     /* Copying results to new array */
-    result = createBlockMatrix(sizeof(double), dim + 1, dim + 1);
+    result = createBlockMatrix(sizeof(double), dim + 1, dim); /* Was dim + 1 on col (why?). Delete when done */
     if (result == NULL){
         freeArrayOfBlocks(memory, memory_index);
         return NULL;
@@ -772,7 +769,6 @@ double ** jacobi(double **vectors, int dim){
 }
 
 double minusSqrt(double value){
-    if (value == 0) return 0;
     return pow(value, -0.5);
 }
 
@@ -780,7 +776,7 @@ double minusSqrt(double value){
 
 double **lnorm(double ** vectors, int numberOfVectors, int length){
     double **diag, **weighted, **multLeft, **multRight, **eyeMatrix, **lnorm;
-    int memory_index = 0;
+    int memory_index = 0, i;
     double ***memory = (double ***) malloc(sizeof(double **) * 6);
     if (memory == NULL) return NULL;
 
@@ -793,13 +789,15 @@ double **lnorm(double ** vectors, int numberOfVectors, int length){
         return NULL;
     }
 
-    diag = ddg(weighted, numberOfVectors, length);
+    diag = ddg(vectors, numberOfVectors, length);
     memory[memory_index++] = diag;
     if (diag == NULL){
         freeArrayOfBlocks(memory, memory_index);
         return NULL;
     }
-    funcOnMatrix(diag, numberOfVectors, numberOfVectors, &minusSqrt);
+    for (i = 0; i < numberOfVectors; i++){
+        diag[i][i] = pow(diag[i][i], -0.5);
+    }
     
     multLeft = createBlockMatrix(sizeof(double), numberOfVectors, numberOfVectors);
     memory[memory_index++] = multLeft;
@@ -885,6 +883,7 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     double argMax=0, arg, sum;
     /* Creating Lnorm matrix of X */
     lnormMatrix = lnorm(vectors, numberOfVectors, length);
+    if (lnormMatrix == NULL) return NULL;
     printMatrix(lnormMatrix, numberOfVectors, numberOfVectors);
     printf("----------------------------------------------\n");
     /* Getting eigenvalues and eigenvectors */
@@ -1001,10 +1000,8 @@ int main(int argc, char* argv[]){
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
     if (vectors == NULL) errorMsg(1);
-
     /* Closing file */
     fclose(input_file);
-    normalSpectralClustering(vectors, numberOfVectors, length);
     /* Jacobi */
     if (!strcmp(operation, "jacobi")){ 
         result = jacobi(vectors, numberOfVectors);
