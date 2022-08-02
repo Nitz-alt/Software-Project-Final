@@ -213,12 +213,10 @@ void freeArray(double ***array, int len){
         length - length of the vectors
         numberOfVectors - number of the vectors
         K - number of clusters
-        EPSILON - epsilon for stopping
-        MAX_ITER - max iterations count
     Return:
         returns the final centroids.
 */
-double **kmeans(double **initailCenteroids, double **vectors, int const length, int const numberOfVectors, int const K){
+double **kmeans(double **initialCenteroids, double **vectors, int const length, int const numberOfVectors, int const K){
     int iter_num = 1;
     double max_epsilon = EPSILON + 1;
     int clusterIndex;
@@ -232,12 +230,12 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
      * Memory size calculation (only of double **)
      * 1 - clusters list
      * K - actual clusters
-     * 1 - clusters row pointers
-     * 1 - clusters block pointer
+     * 1 - centeroids row pointers
+     * 1 - centeroids block pointer
      */
+    printf("Entered kmeans\nlength=%d\nnumberOfVectors=%d\nK=%d\n", length, numberOfVectors, K);
     memory = (double ***) malloc(sizeof(double **) * K + 3);
     if (memory == NULL) return NULL;
-    /* Copying centeroids */
     centeroids = (double **) createBlockMatrix(sizeof(double), K, length);
     if (centeroids == NULL){
         free(memory);
@@ -245,7 +243,9 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
     }
     memory[memoryListIndex++] = centeroids;
     memory[memoryListIndex++] = (double **) *centeroids;
-    copyMatrix(centeroids, initailCenteroids, K, length);
+    printf("Reached 1\n");
+    /* Copying centeroids */
+    copyMatrix(centeroids, initialCenteroids, K, length);
     /*Allocate cluster*/
     clusters = (double ***) malloc(sizeof(double **) * K);
     if (clusters == NULL){
@@ -253,6 +253,7 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
         return NULL;
     }
     memory[memoryListIndex++] = (double **)clusters;
+    printf("Reached 2\n");
     for (i = 0; i < K; i++){
         clusters[i] = (double **) malloc(numberOfVectors *  sizeof(double *));
         if (clusters[i] == NULL){
@@ -261,14 +262,14 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
         }
         memory[memoryListIndex++] = clusters[i];
     }
-
+    printf("Reached 3\n");
     /*Resetting cluster sizes to 0*/
     clusterSizes = (int *) calloc(K, sizeof(int));
     if (clusterSizes == NULL){
         freeArray(memory, memoryListIndex);
         return NULL;
     }
-
+    printf("Reached 4\n");
     while (iter_num < MAX_ITER && max_epsilon > EPSILON){
         /* Assigning vectors to clusters*/
         for(i = 0; i < numberOfVectors; i++){
@@ -276,7 +277,9 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
             clusters[clusterIndex][clusterSizes[clusterIndex]] = vectors[i];
             clusterSizes[clusterIndex]++;
         }
+        printf("Reached -1\n");
         max_epsilon = UpdateCenteroids(centeroids, clusters, clusterSizes, length, K);
+        printf("Reached -2\n");
         iter_num++;
         /* Resetting clusters*/
         for (j = 0; j < K; j++){
@@ -286,8 +289,11 @@ double **kmeans(double **initailCenteroids, double **vectors, int const length, 
             clusterSizes[j] = 0;
         }
     }
+    printf("Reached 5\n");
     result = createBlockMatrix(sizeof(double), K, length);
+    printf("Reached 6\n");
     copyMatrix(result, centeroids, K, length);
+    printf("Reached 7\n");
     freeArray(memory, memoryListIndex);
     free(clusterSizes);
     return result;
@@ -307,9 +313,9 @@ double **createBlockMatrix(size_t size, int numberOfRows, int numberOfColumns){
     int i;
     double *block, **matrix;
     block = (double *) malloc(size * numberOfRows * numberOfColumns);
-    if (block == NULL) {printf("error at malloc 2\n");return NULL;}
+    if (block == NULL) {return NULL;}
     matrix = (double **) malloc(size * numberOfRows);
-    if (matrix == NULL) {printf("error at malloc 2\n");return NULL;}
+    if (matrix == NULL) {return NULL;}
     for (i = 0; i < numberOfRows; i++){
         matrix[i] = block + i * numberOfColumns;
     }
@@ -940,16 +946,19 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     free(transposeBlock);
     free(transposeMatrix);
     transposeMatrix = temp;
-    
-    /* Finding K */
-    for (i = 0 ; i < numberOfVectors/2; i++){
-        arg = transposeMatrix[0][i] - transposeMatrix[0][i+1];
-        if (arg > argMax){
-            K = i+1;
-            argMax = arg;
+    /* If number of clusters is zero we need to find K according to heuristic */
+    if (*numberOfClusters  == 0){
+        /* Finding K */
+        for (i = 0 ; i < numberOfVectors/2; i++){
+            arg = transposeMatrix[0][i] - transposeMatrix[0][i+1];
+            if (arg > argMax){
+                K = i+1;
+                argMax = arg;
+            }
         }
+        *numberOfClusters = K;
     }
-    *numberOfClusters = K;
+    K = *numberOfClusters;
     T = createBlockMatrix(sizeof(double), numberOfVectors, K);
     if (T == NULL){
         freeBlock(transposeMatrix);
@@ -974,43 +983,6 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     freeBlock(lnormMatrix);
     return T;
 }
-
-void testKmeans(){
-    int K = 2; 
-    int numVec = 10;
-    int leng = 2;
-    double a1[] = {1.0, 0.0};
-    double a2[] = {0.0, 1.0};
-    double a3[] = {1.0, 0.0};
-    double a4[] = {-1.0, 0.0};
-    double a5[] = {0.0, 1.0};
-    double a6[] = {1.0, 0.0};
-    double a7[] = {1.0, 0.0};
-    double a8[] = {-1.0, 0.0};
-    double a9[] = {0.0, -1.0};
-    double a10[] = {1.0, 0.0};
-    double c1[] = {1.0, 0.0};
-    double c2[] = {-1.0, 0.0};
-    double **vec = malloc(sizeof(double *) * 10);
-    double **cent = malloc(sizeof(double *) * 2);
-    vec[0] = a1;
-    vec[1] = a2;
-    vec[2] = a3;
-    vec[3] = a4;
-    vec[4] = a5;
-    vec[5] = a6;
-    vec[6] = a7;
-    vec[7] = a8;
-    vec[8] = a9;
-    vec[9] = a10;
-    cent[0] = c1;
-    cent[1] = c2;
-    kmeans(cent, vec, leng, numVec, K);
-    free(vec);
-    free(cent);
-}
-
-
 
 int main(int argc, char* argv[]){
     /*
@@ -1065,9 +1037,6 @@ int main(int argc, char* argv[]){
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
     if (vectors == NULL) errorMsg(1);
-
-    testKmeans();
-
 
     /* Closing file */
     fclose(input_file);

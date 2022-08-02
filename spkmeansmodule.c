@@ -105,7 +105,6 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
     freeBlock(centeroids);
     freeBlock(vectors);
     freeBlock(result);
-    printf("done\n");
     return pyResult;
 }
 
@@ -222,7 +221,7 @@ PyObject *_normalSpectralClustering(PyObject *self, PyObject *args){
     int K, numberOfVectors, lengthOfVectors;
     PyObject *list, *pyResult;
     double **matrix, **result;
-    if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &lengthOfVectors)){
+    if (!PyArg_ParseTuple(args, "Oiii", &list, &numberOfVectors, &lengthOfVectors, &K)){
         errorMsg(1);
         return NULL;
     }
