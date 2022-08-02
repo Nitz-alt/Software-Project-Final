@@ -77,7 +77,38 @@ double **convertPythonListToArray(PyObject *list, int numberOfVectors, int lengt
 }
 
 PyObject* _kmeans(PyObject *self, PyObject *args){
-    return NULL;
+    PyObject *pyListCenteroids, *pyListVectors, *pyResult;
+    int numberOfVectors, lengthOfVectors, K;
+    double **centeroids, **vectors, **result;
+    int i = 1;
+    if (!PyArg_ParseTuple(args, "OOiii", &pyListCenteroids, &pyListVectors, &numberOfVectors, &lengthOfVectors, &K)){
+        errorMsg(1);
+        return NULL;
+    }
+    printf("%d\n", i++);
+    centeroids = convertPythonListToArray(pyListCenteroids, K, lengthOfVectors);
+    if (centeroids == NULL){
+        return NULL;   
+    }
+    printf("%d\n", i++);
+    vectors = convertPythonListToArray(pyListVectors, numberOfVectors, lengthOfVectors);
+    if (vectors == NULL){
+        return NULL;
+    }
+    printf("%d\n", i++);
+    result = kmeans(centeroids, vectors, lengthOfVectors, numberOfVectors, K);
+    if (result == NULL){
+        freeBlock(centeroids);
+        freeBlock(vectors);
+    }
+    printf("%d\n", i++);
+
+    pyResult = createPythonList(result, lengthOfVectors, K);
+    freeBlock(centeroids);
+    freeBlock(vectors);
+    freeBlock(result);
+    printf("%d\n", i++);
+    return pyResult;
 }
 
 /**
@@ -223,7 +254,7 @@ PyObject *_normalSpectralClustering(PyObject *self, PyObject *args){
 
 
 static PyMethodDef spkmeansMethods[] = {
-    {"kmeans", (PyCFunction)_kmeans, METH_VARARGS, PyDoc_STR("Calculates centroids for K-Means classification.\nParameters: centroids list\nVectors list\nLength of vectors\nNumber of vectors\nK\nEpsilon\nMax iterations\nReturn: Clusters array\n")},
+    {"kmeans", (PyCFunction)_kmeans, METH_VARARGS, PyDoc_STR("Calculates centroids for K-Means classification.\nParameters: centroids list\nVectors list\nLength of vectors\nNumber of vectors\nK\nReturn: Clusters array\n")},
     {"wam", (PyCFunction) _wam, METH_VARARGS, PyDoc_STR("Calculates the Weighted Adjacency Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Weighted Adjacency Matrix\n")},
     {"ddg", (PyCFunction) _ddg, METH_VARARGS, PyDoc_STR("Calculates  Diagonal Degree Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Diagonal Degree Matrix\n")},
     {"lnorm", (PyCFunction) _lnorm, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Normalized Graph Laplacian\n")},

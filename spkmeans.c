@@ -6,6 +6,9 @@
 
 
 #define CONVERGENCE 1E-5
+#define EPSILON 0
+#define MAX_ITER 300
+
 /*
     Paramters:
         x - Vector 1
@@ -214,7 +217,7 @@ void freeArray(double ***array, int len){
     Return:
         returns the final centroids. NOTE THAT THE FUNCTION CHANGES THEM IN PLACE ANYWAY.
 */
-double **kmeans(double ** centeroids, double ** vectors, int const length, int const numberOfVectors, int const K, double const EPSILON, int const MAX_ITER){
+double **kmeans(double **centeroids, double **vectors, int const length, int const numberOfVectors, int const K){
     int iter_num = 1;
     double max_epsilon = EPSILON + 1;
     int clusterIndex;
@@ -956,6 +959,42 @@ double **normalSpectralClustering(double **vectors, int numberOfVectors, int len
     return T;
 }
 
+void testKmeans(){
+    int K = 2; 
+    int numVec = 10;
+    int leng = 2;
+    double a1[] = {1.0, 0.0};
+    double a2[] = {0.0, 1.0};
+    double a3[] = {1.0, 0.0};
+    double a4[] = {-1.0, 0.0};
+    double a5[] = {0.0, 1.0};
+    double a6[] = {1.0, 0.0};
+    double a7[] = {1.0, 0.0};
+    double a8[] = {-1.0, 0.0};
+    double a9[] = {0.0, -1.0};
+    double a10[] = {1.0, 0.0};
+    double c1[] = {1.0, 0.0};
+    double c2[] = {-1.0, 0.0};
+    double **vec = malloc(sizeof(double *) * 10);
+    double **cent = malloc(sizeof(double *) * 2);
+    vec[0] = a1;
+    vec[1] = a2;
+    vec[2] = a3;
+    vec[3] = a4;
+    vec[4] = a5;
+    vec[5] = a6;
+    vec[6] = a7;
+    vec[7] = a8;
+    vec[8] = a9;
+    vec[9] = a10;
+    cent[0] = c1;
+    cent[1] = c2;
+    kmeans(cent, vec, leng, numVec, K);
+    free(vec);
+    free(cent);
+}
+
+
 
 int main(int argc, char* argv[]){
     /*
@@ -1010,6 +1049,10 @@ int main(int argc, char* argv[]){
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
     if (vectors == NULL) errorMsg(1);
+
+    testKmeans();
+
+
     /* Closing file */
     fclose(input_file);
     /* Jacobi */
