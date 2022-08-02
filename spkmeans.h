@@ -9,5 +9,5 @@ double **createBlockMatrix(size_t size, int numberOfRows, int numberOfColumns);
 void freeBlock(double **ptr);
 void errorMsg(int code);
 void printMatrix(double **array, int numberOfRows, int numberOfColumns);
-double **normalSpectralClustering(double **vectors, int numberOfVectors, int length);
+double **normalSpectralClustering(double **vectors, int numberOfVectors, int length, int *numberOfClusters);
 #endif

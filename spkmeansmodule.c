@@ -13,11 +13,17 @@
  * @return PyObject* 
  */
 static PyObject* createPythonList(double ** vectors, int length, int numberOfVectors){
-    int i,j;
+    int i,j, k;
     PyObject *list = PyList_New(numberOfVectors);
     PyObject *vector;
     for (i = 0; i < numberOfVectors; i++){
         vector = PyList_New((int)length);
+        if (vector == NULL){
+            for (k = 0; k < i; k++){
+                Py_DecRef(PyList_GetItem(list, k));
+            }
+            return NULL;
+        }
         for (j = 0; j < length; j++){
             PyList_SetItem(vector, j, PyFloat_FromDouble(vectors[i][j]));
         }
@@ -183,12 +189,46 @@ PyObject* _jacobi(PyObject *self, PyObject *args){
     return PyResult;
 }
 
+PyObject *_normalSpectralClustering(PyObject *self, PyObject *args){
+    int K, numberOfVectors, lengthOfVectors;
+    PyObject *list, *pyResult;
+    double **matrix, **result;
+    if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &lengthOfVectors)){
+        errorMsg(1);
+        return NULL;
+    }
+    if (!PyList_Check(list)){
+            errorMsg(1);
+            return NULL;
+    }
+    if (numberOfVectors <= 0 || lengthOfVectors <= 0){
+        errorMsg(1);
+        return NULL;
+    }
+    matrix = convertPythonListToArray(list, numberOfVectors, lengthOfVectors);
+    if (!matrix){
+        errorMsg(1);
+        return NULL;
+    }
+    result = normalSpectralClustering(matrix, numberOfVectors, lengthOfVectors, &K);
+    if (result == NULL){
+        errorMsg(1);
+        return NULL;
+    }
+    pyResult = createPythonList(result, K, numberOfVectors);
+    freeBlock(matrix);
+    freeBlock(result);
+    return Py_BuildValue("(Oi)", pyResult, K);
+}
+
+
 static PyMethodDef spkmeansMethods[] = {
     {"kmeans", (PyCFunction)_kmeans, METH_VARARGS, PyDoc_STR("Calculates centroids for K-Means classification.\nParameters: centroids list\nVectors list\nLength of vectors\nNumber of vectors\nK\nEpsilon\nMax iterations\nReturn: Clusters array\n")},
     {"wam", (PyCFunction) _wam, METH_VARARGS, PyDoc_STR("Calculates the Weighted Adjacency Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Weighted Adjacency Matrix\n")},
     {"ddg", (PyCFunction) _ddg, METH_VARARGS, PyDoc_STR("Calculates  Diagonal Degree Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Diagonal Degree Matrix\n")},
     {"lnorm", (PyCFunction) _lnorm, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Normalized Graph Laplacian\n")},
     {"jacobi", (PyCFunction) _jacobi, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A matrix. First row cotains the eigenvalues and others rows the eigenvectors\n")},
+    {"normalSpectralClustering", (PyCFunction) _normalSpectralClustering, METH_VARARGS, PyDoc_STR("T matrix of the Normalized Spectral Clustering method.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A tuple containing The matrix and K\n")},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
