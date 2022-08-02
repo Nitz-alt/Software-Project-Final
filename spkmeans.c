@@ -9,6 +9,7 @@
 #define EPSILON 0
 #define MAX_ITER 300
 
+void copyMatrix(double **destination, double **origin, int rows, int cols);
 /*
     Paramters:
         x - Vector 1
@@ -215,9 +216,9 @@ void freeArray(double ***array, int len){
         EPSILON - epsilon for stopping
         MAX_ITER - max iterations count
     Return:
-        returns the final centroids. NOTE THAT THE FUNCTION CHANGES THEM IN PLACE ANYWAY.
+        returns the final centroids.
 */
-double **kmeans(double **centeroids, double **vectors, int const length, int const numberOfVectors, int const K){
+double **kmeans(double **initailCenteroids, double **vectors, int const length, int const numberOfVectors, int const K){
     int iter_num = 1;
     double max_epsilon = EPSILON + 1;
     int clusterIndex;
@@ -225,13 +226,26 @@ double **kmeans(double **centeroids, double **vectors, int const length, int con
     int *clusterSizes;
     double ***clusters;
     double ***memory;
+    double **centeroids;
+    double **result;
     /**
      * Memory size calculation (only of double **)
      * 1 - clusters list
      * K - actual clusters
+     * 1 - clusters row pointers
+     * 1 - clusters block pointer
      */
-    memory = (double ***) malloc(sizeof(double **) * K + 1);
+    memory = (double ***) malloc(sizeof(double **) * K + 3);
     if (memory == NULL) return NULL;
+    /* Copying centeroids */
+    centeroids = (double **) createBlockMatrix(sizeof(double), K, length);
+    if (centeroids == NULL){
+        free(memory);
+        return NULL;
+    }
+    memory[memoryListIndex++] = centeroids;
+    memory[memoryListIndex++] = (double **) *centeroids;
+    copyMatrix(centeroids, initailCenteroids, K, length);
     /*Allocate cluster*/
     clusters = (double ***) malloc(sizeof(double **) * K);
     if (clusters == NULL){
@@ -272,9 +286,11 @@ double **kmeans(double **centeroids, double **vectors, int const length, int con
             clusterSizes[j] = 0;
         }
     }
+    result = createBlockMatrix(sizeof(double), K, length);
+    copyMatrix(result, centeroids, K, length);
     freeArray(memory, memoryListIndex);
     free(clusterSizes);
-    return centeroids;
+    return result;
 }
 
 /*

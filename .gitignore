@@ -6,3 +6,4 @@ a.txt
 spkmeans.exe
 /build
 *.pyd
+*.txt

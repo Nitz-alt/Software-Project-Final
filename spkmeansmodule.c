@@ -81,33 +81,31 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
     int numberOfVectors, lengthOfVectors, K;
     double **centeroids, **vectors, **result;
     int i = 1;
+    /* Parsing arguments */
     if (!PyArg_ParseTuple(args, "OOiii", &pyListCenteroids, &pyListVectors, &numberOfVectors, &lengthOfVectors, &K)){
         errorMsg(1);
         return NULL;
     }
-    printf("%d\n", i++);
     centeroids = convertPythonListToArray(pyListCenteroids, K, lengthOfVectors);
     if (centeroids == NULL){
         return NULL;   
     }
-    printf("%d\n", i++);
     vectors = convertPythonListToArray(pyListVectors, numberOfVectors, lengthOfVectors);
     if (vectors == NULL){
         return NULL;
     }
-    printf("%d\n", i++);
     result = kmeans(centeroids, vectors, lengthOfVectors, numberOfVectors, K);
     if (result == NULL){
         freeBlock(centeroids);
         freeBlock(vectors);
+        return NULL;
     }
-    printf("%d\n", i++);
-
+    printMatrix(result, K, lengthOfVectors);
     pyResult = createPythonList(result, lengthOfVectors, K);
     freeBlock(centeroids);
     freeBlock(vectors);
     freeBlock(result);
-    printf("%d\n", i++);
+    printf("done\n");
     return pyResult;
 }
 
