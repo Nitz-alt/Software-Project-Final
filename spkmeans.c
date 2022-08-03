@@ -8,6 +8,10 @@
 #define CONVERGENCE 1E-5
 #define EPSILON 0
 #define MAX_ITER 300
+#define MEMORY_ERROR_CHECK(MEMORY_CHECK, MEMORY_ARRAY, MEMORY_SIZE) if((MEMORY_CHECK) == 0)\
+                                                                        {freeArray(MEMORY_ARRAY, MEMORY_SIZE);\
+                                                                        errorMsg(1);\
+                                                                        return ((void *) 0);}
 
 void copyMatrix(double **destination, double **origin, int rows, int cols);
 /*
@@ -195,15 +199,13 @@ double UpdateCenteroids(double **centeroids, double ** clusters[], int clusterSi
         ptr - an array of pointers to memory.
     Return:
 */
-void freeArray(double ***array, int len){
+void freeArray(void **array, int len){
     int i;
     for (i = 0; i < len; i++){
         free(array[i]);
     }
     free(array);
 }
-
-
 
 /*  
     kmeans algortihm.
@@ -220,56 +222,47 @@ double **kmeans(double **initialCenteroids, double **vectors, int const length, 
     int iter_num = 1;
     double max_epsilon = EPSILON + 1;
     int clusterIndex;
-    int i,j,t, memoryListIndex = 0;
+    int i,j,t;
     int *clusterSizes;
     double ***clusters;
-    double ***memory;
     double **centeroids;
+    /* Memory handling array */
+    void **memory;
+    int memoryListIndex=0;
     double **result;
     /**
-     * Memory size calculation (only of double **)
-     * 1 - clusters list
-     * K - actual clusters
-     * 1 - centeroids row pointers
-     * 1 - centeroids block pointer
+     * Centreoids copy:
+     * 1 - Centroids main memory
+     * 1 - Centroids block memory
+     * 1 - Clusters list
+     * K - Clusters array
+     * 1 - clusterSizes array
+     * 
      */
-    printf("Entered kmeans\nlength=%d\nnumberOfVectors=%d\nK=%d\n", length, numberOfVectors, K);
-    memory = (double ***) malloc(sizeof(double **) * K + 3);
-    if (memory == NULL) return NULL;
+    memory = malloc(sizeof(void *) * (4 +K));
+    MEMORY_ERROR_CHECK(memory, memory, memoryListIndex);
+
+    /* Copying centroids to new matrix in order not to change original array */
     centeroids = (double **) createBlockMatrix(sizeof(double), K, length);
-    if (centeroids == NULL){
-        free(memory);
-        return NULL;
-    }
-    memory[memoryListIndex++] = centeroids;
-    memory[memoryListIndex++] = (double **) *centeroids;
-    printf("Reached 1\n");
-    /* Copying centeroids */
+    MEMORY_ERROR_CHECK(centeroids, memory, memoryListIndex);
+    memory[memoryListIndex++] = (void *) centeroids;
+    memory[memoryListIndex++] = (void *) *centeroids;
     copyMatrix(centeroids, initialCenteroids, K, length);
+
     /*Allocate cluster*/
-    clusters = (double ***) malloc(sizeof(double **) * K);
-    if (clusters == NULL){
-        freeArray(memory, memoryListIndex);
-        return NULL;
-    }
-    memory[memoryListIndex++] = (double **)clusters;
-    printf("Reached 2\n");
+    clusters = (double ***) malloc(sizeof(double *)*K);
+    MEMORY_ERROR_CHECK(clusters, memory, memoryListIndex);
+    memory[memoryListIndex++] = clusters;
     for (i = 0; i < K; i++){
         clusters[i] = (double **) malloc(numberOfVectors *  sizeof(double *));
-        if (clusters[i] == NULL){
-            freeArray(memory, memoryListIndex);
-            return NULL;
-        }
+        MEMORY_ERROR_CHECK(clusters[i], memory, memoryListIndex);
         memory[memoryListIndex++] = clusters[i];
     }
-    printf("Reached 3\n");
-    /*Resetting cluster sizes to 0*/
+
     clusterSizes = (int *) calloc(K, sizeof(int));
-    if (clusterSizes == NULL){
-        freeArray(memory, memoryListIndex);
-        return NULL;
-    }
-    printf("Reached 4\n");
+    MEMORY_ERROR_CHECK(clusterSizes, memory, memoryListIndex);
+    memory[memoryListIndex++] = clusterSizes;
+
     while (iter_num < MAX_ITER && max_epsilon > EPSILON){
         /* Assigning vectors to clusters*/
         for(i = 0; i < numberOfVectors; i++){
@@ -277,9 +270,7 @@ double **kmeans(double **initialCenteroids, double **vectors, int const length, 
             clusters[clusterIndex][clusterSizes[clusterIndex]] = vectors[i];
             clusterSizes[clusterIndex]++;
         }
-        printf("Reached -1\n");
         max_epsilon = UpdateCenteroids(centeroids, clusters, clusterSizes, length, K);
-        printf("Reached -2\n");
         iter_num++;
         /* Resetting clusters*/
         for (j = 0; j < K; j++){
@@ -289,13 +280,10 @@ double **kmeans(double **initialCenteroids, double **vectors, int const length, 
             clusterSizes[j] = 0;
         }
     }
-    printf("Reached 5\n");
     result = createBlockMatrix(sizeof(double), K, length);
-    printf("Reached 6\n");
+    MEMORY_ERROR_CHECK(result, memory, memoryListIndex);
     copyMatrix(result, centeroids, K, length);
-    printf("Reached 7\n");
     freeArray(memory, memoryListIndex);
-    free(clusterSizes);
     return result;
 }
 
@@ -470,6 +458,7 @@ double ** ddg(double **matrix, int numberOfVectors, int length){
             else diag_matrix[i][i] = sumOfRow(wamMatrix, numberOfVectors, i);
         }
     }
+    freeBlock(wamMatrix);
     return diag_matrix;
 }
 
@@ -1037,7 +1026,6 @@ int main(int argc, char* argv[]){
     /* Parsing vectors from input file */
     vectors = parseMatrix(input_file, numberOfVectors, length);
     if (vectors == NULL) errorMsg(1);
-
     /* Closing file */
     fclose(input_file);
     /* Jacobi */

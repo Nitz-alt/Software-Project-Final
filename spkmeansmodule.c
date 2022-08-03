@@ -13,15 +13,24 @@
  * @return PyObject* 
  */
 static PyObject* createPythonList(double ** vectors, int length, int numberOfVectors){
-    int i,j, k;
-    PyObject *list = PyList_New(numberOfVectors);
+    int i,j, k, t;
     PyObject *vector;
+    PyObject *list = PyList_New(numberOfVectors);
+    if (list == NULL){
+        return NULL;
+    }
     for (i = 0; i < numberOfVectors; i++){
-        vector = PyList_New((int)length);
+        vector = PyList_New(length);
         if (vector == NULL){
+            /* If failed to allocate we need to dec ref all float created and sublists */
             for (k = 0; k < i; k++){
-                Py_DecRef(PyList_GetItem(list, k));
+                vector = PyList_GetItem(list, k);
+                for (t = 0; t < length; t++){
+                    Py_DecRef(PyList_GetItem(vector, t));
+                }
+                Py_DecRef(vector);
             }
+            Py_DecRef(list);
             return NULL;
         }
         for (j = 0; j < length; j++){
@@ -59,13 +68,13 @@ double **convertPythonListToArray(PyObject *list, int numberOfVectors, int lengt
         for (j = 0; j < length; j++){
             /* Getting item from row */
             item = PyList_GetItem(subList, j);
-            /* Error checking if the value is indeed a float */
+            /* Error checking if the value is not a float */
             if (!PyFloat_Check(item)){
                 freeBlock(vectors);
                 return NULL;
             }
             vectors[i][j] = PyFloat_AsDouble(item);
-            /* If an error occured PyErr... returns a pointer to the error type (i.e. not equal NULL) and null succeeded
+            /* If an error occured PyErr... returns a pointer to the error type (i.e. not equal NULL) and null if succeeded.
             Error checking for sucess */
             if (PyErr_Occurred()){
                 freeBlock(vectors);
@@ -100,7 +109,6 @@ PyObject* _kmeans(PyObject *self, PyObject *args){
         freeBlock(vectors);
         return NULL;
     }
-    printMatrix(result, K, lengthOfVectors);
     pyResult = createPythonList(result, lengthOfVectors, K);
     freeBlock(centeroids);
     freeBlock(vectors);
@@ -120,7 +128,6 @@ PyObject *dataPointsOperation(PyObject *args, double ** (*goal)(double **, int, 
     double **matrix, **result;
     int numberOfVectors, lengthOfVectors;
     if (!PyArg_ParseTuple(args, "Oii", &list, &numberOfVectors, &lengthOfVectors)){
-        PyErr_PrintEx(0);
         errorMsg(1);
         return NULL;
     }
@@ -256,7 +263,7 @@ static PyMethodDef spkmeansMethods[] = {
     {"ddg", (PyCFunction) _ddg, METH_VARARGS, PyDoc_STR("Calculates  Diagonal Degree Matrix.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Diagonal Degree Matrix\n")},
     {"lnorm", (PyCFunction) _lnorm, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Normalized Graph Laplacian\n")},
     {"jacobi", (PyCFunction) _jacobi, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A matrix. First row cotains the eigenvalues and others rows the eigenvectors\n")},
-    {"normalSpectralClustering", (PyCFunction) _normalSpectralClustering, METH_VARARGS, PyDoc_STR("T matrix of the Normalized Spectral Clustering method.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A tuple containing The matrix and K\n")},
+    {"normalSpectralClustering", (PyCFunction) _normalSpectralClustering, METH_VARARGS, PyDoc_STR("Calculating T matrix of the Normalized Spectral Clustering method.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A tuple containing The matrix and K\n")},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
