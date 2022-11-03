@@ -62,7 +62,7 @@ def vectorsEngineering(i):
 
 def print_lst(lst):
     lst = [str(ind) for ind in lst]
-    lst_to_print = ",".join(lst)תשמ
+    lst_to_print = ",".join(lst)
     print(lst_to_print)
 
 def print_mat(mat):
