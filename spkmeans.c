@@ -472,7 +472,6 @@ double ** ddg(double **matrix, int numberOfVectors, int length){
     return diag_matrix;
 }
 
-
 /*
     Returns the eye matrix of (size X size) dimensions 
     Paramters:
@@ -756,7 +755,6 @@ double ** jacobi(double **vectors, int dim){
             freeArrayOfBlocks(memory, memory_index);
             return result;
             }
-            
 
         /* matrix[maxIndexRow][maxIndexCol] is the element with the largest absolute value */
         calcCS(matrix, maxIndexRow, maxIndexCol, &c, &s);

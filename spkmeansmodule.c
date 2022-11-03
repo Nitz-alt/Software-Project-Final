@@ -267,6 +267,7 @@ static PyMethodDef spkmeansMethods[] = {
     {"lnorm", (PyCFunction) _lnorm, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: Normalized Graph Laplacian\n")},
     {"jacobi", (PyCFunction) _jacobi, METH_VARARGS, PyDoc_STR("Calculates the Normalized Graph Laplacian.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A matrix. First row cotains the eigenvalues and others rows the eigenvectors\n")},
     {"normalSpectralClustering", (PyCFunction) _normalSpectralClustering, METH_VARARGS, PyDoc_STR("Calculating T matrix of the Normalized Spectral Clustering method.\nParameters:\n\tData Points matrix\n\tNumber of data points\n\tDimension of point\nReturn: A tuple containing The matrix and K\n")},
+
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
